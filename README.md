@@ -22,5 +22,16 @@ Ce projet est une application DevOps fullstack pour démontrer l'utilisation des
    ```bash
    git clone https://github.com/mootezbourguiba/devops-fullstack.git
    cd devops-fullstack
+   ## Configuration requise
+- Docker
+- Docker Compose
+- MySQL client
+
+## Variables d'environnement
+| Service   | Variable                | Valeur par défaut |
+|-----------|-------------------------|-------------------|
+| Backend   | SPRING_DATASOURCE_URL   | jdbc:mysql://db:3306/devops_project |
+| Backend   | SPRING_DATASOURCE_USER  | user              |
+| Backend   | SPRING_DATASOURCE_PASS  | password          |
 
 
