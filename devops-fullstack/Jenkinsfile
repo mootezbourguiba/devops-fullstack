@@ -1,0 +1,41 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/mootezbourguiba/devops-fullstack.git'
+            }
+        }
+
+        stage('Build Backend') {
+            steps {
+                dir('backend') {
+                    sh 'mvn clean package'
+                }
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                sh 'docker-compose build'
+            }
+        }
+
+        stage('Push Docker Images') {
+            steps {
+                withDockerRegistry([credentialsId: 'dockerhub-credentials']) {
+                    sh 'docker-compose push'
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sshagent(['ssh-server-credentials']) {
+                    sh 'ssh user@remote-server "docker-compose pull && docker-compose up -d"'
+                }
+            }
+        }
+    }
+}
