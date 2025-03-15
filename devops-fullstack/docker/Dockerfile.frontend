@@ -1,0 +1,13 @@
+# Stage 1: Build the React application
+FROM node:16-alpine AS builder  # Use Node.js 16 Alpine Linux as the base image for building
+WORKDIR /app                       # Set the working directory inside the container to /app
+COPY frontend/package*.json ./     # Copy package.json and package-lock.json (if you have it)
+RUN npm install                    # Install the npm dependencies
+COPY frontend/. .                 # Copy all the remaining files from your React project
+RUN npm run build                  # Build the React application (creates the optimized production build)
+
+# Stage 2: Serve the built React application with Nginx
+FROM nginx:alpine                  # Use Nginx Alpine Linux as the base image for serving
+COPY --from=builder /app/build /usr/share/nginx/html  # Copy the built React app from the builder stage to Nginx's HTML directory
+EXPOSE 80                          # Expose port 80 for accessing the Nginx server
+CMD ["nginx", "-g", "daemon off;"] # Start Nginx in the foreground

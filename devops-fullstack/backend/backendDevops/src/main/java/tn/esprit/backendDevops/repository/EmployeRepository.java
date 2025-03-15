@@ -1,10 +1,9 @@
 package tn.esprit.backendDevops.repository;
 
-
-import tn.esprit.backendDevops.model.User;
+import tn.esprit.backendDevops.entities.Employe;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface EmployeRepository extends JpaRepository<Employe, Long> {
 }
