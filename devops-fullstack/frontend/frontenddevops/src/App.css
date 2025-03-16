@@ -24,4 +24,9 @@ ul {
 
 li {
   margin: 5px 0;
+  cursor: pointer; /* Add a pointer cursor */
+}
+
+li:hover {
+  background-color: #f0f0f0; /* Highlight on hover */
 }
