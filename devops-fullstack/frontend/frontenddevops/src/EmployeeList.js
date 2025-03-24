@@ -6,15 +6,8 @@ function EmployeeList() {
     useEffect(() => {
         // useEffect est un hook qui s'exécute après le rendu du composant
         fetch('/api/employes') // Remarquez l'URL relative grâce au proxy configuré
-        .then(response => {
-            console.log('response.status',response.status)
-            return response.json();
-        })
-            .then(data => {
-              console.log('employees',data);
-              setEmployees(data)
-            }) // Met à jour l'état avec les données récupérées
-            .catch(error =>  console.log(error));// Le tableau vide en second argument indique que cet effet ne s'exécute qu'une seule fois (au montage du composant)
+            .then(response => response.json()) // Convertit la réponse en JSON
+            .then(data => setEmployees(data)); // Met à jour l'état avec les données récupérées
     }, []); // Le tableau vide en second argument indique que cet effet ne s'exécute qu'une seule fois (au montage du composant)
 
     return (

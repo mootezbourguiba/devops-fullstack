@@ -32,13 +32,13 @@ public class EmployeServiceTest {
     @Test
     public void testGetAllEmployes() {
         Employe employe1 = new Employe();
-        employe1.setId(1L);
+        employe1.setId(1); // Using int type
         employe1.setNom("Doe");
         employe1.setPrenom("John");
         employe1.setPoste("Developer");
 
         Employe employe2 = new Employe();
-        employe2.setId(2L);
+        employe2.setId(2); // Using int type
         employe2.setNom("Smith");
         employe2.setPrenom("Jane");
         employe2.setPoste("Manager");
@@ -56,19 +56,20 @@ public class EmployeServiceTest {
 
     @Test
     public void testGetEmployeById() {
+        int employeId = 1;
         Employe employe = new Employe();
-        employe.setId(1L);
+        employe.setId(employeId);  // Using int type
         employe.setNom("Doe");
         employe.setPrenom("John");
         employe.setPoste("Developer");
 
-        when(employeRepository.findById(1L)).thenReturn(Optional.of(employe));
+        when(employeRepository.findById((long) employeId)).thenReturn(Optional.of(employe)); // Changed to int
 
-        Employe retrievedEmploye = employeService.getEmployeById(1L);
+        Employe retrievedEmploye = employeService.getEmployeById((long) employeId).orElse(null);
 
         assertNotNull(retrievedEmploye);
         assertEquals("Doe", retrievedEmploye.getNom());
-        verify(employeRepository, times(1)).findById(1L);
+        verify(employeRepository, times(1)).findById((long) employeId); // Changed to int
     }
 
     @Test

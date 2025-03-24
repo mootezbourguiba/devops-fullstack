@@ -1,18 +1,15 @@
 import React from 'react';
-import EmployeeList from './components/EmployeeList';
-import './App.css';
+import EmployeeList from './EmployeeList';
+import OvertimeCalculator from './OvertimeCalculator';
 
 function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Employee Management</h1>
-      </header>
-      <main>
-        <EmployeeList />
-      </main>
-    </div>
-  );
+    return (
+        <div>
+            <h1>Application de Gestion des Employés</h1>
+            <EmployeeList />
+            <OvertimeCalculator />
+        </div>
+    );
 }
 
 export default App;

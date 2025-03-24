@@ -1,47 +1,33 @@
 package tn.esprit.backendDevops.controller;
 
-
-import tn.esprit.backendDevops.dto.EmployeDTO;
-import tn.esprit.backendDevops.entities.Employe;
-import tn.esprit.backendDevops.mappers.EmployeMapper;
-import tn.esprit.backendDevops.services.EmployeService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import tn.esprit.backendDevops.entities.Employe;
+import tn.esprit.backendDevops.services.EmployeService;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/employes")
+@RequestMapping("/api/employees") //Utilisez employees au lieu de employes. Pour homogénéiser le code
+@CrossOrigin(origins = "*")
 public class EmployeController {
 
-    private final EmployeService employeService;
-    private final EmployeMapper employeMapper;
+    @Autowired
+    private EmployeService employeService;
 
-    public EmployeController(EmployeService employeService, EmployeMapper employeMapper) {
-        this.employeService = employeService;
-        this.employeMapper = employeMapper;
+    @GetMapping("/") // Route pour récupérer tous les employés (GET /api/employees)
+    public List<Employe> getAllEmployes() {
+        return employeService.getAllEmployes(); //Supprimer tout le reste, c'est ça le problème du back!
     }
 
-    @GetMapping
-    public List<EmployeDTO> getAllEmployes() {
-        List<Employe> employes = employeService.getAllEmployes();
-        return employes.stream()
-                .map(employeMapper::employeToEmployeDTO)
-                .collect(Collectors.toList());
+    @GetMapping("/{id}/overtime")
+    public double getOvertime(
+            @PathVariable int id,
+            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        return employeService.calculateOvertime(id, startDate, endDate);
     }
-
-    @GetMapping("/{id}")
-    public EmployeDTO getEmployeById(@PathVariable Long id) {
-        Employe employe = employeService.getEmployeById(id);
-        return employeMapper.employeToEmployeDTO(employe);
-    }
-
-    @PostMapping
-    public EmployeDTO createEmploye(@RequestBody EmployeDTO employeDTO) {
-        Employe employe = employeMapper.employeDTOtoEmploye(employeDTO);
-        Employe createdEmploye = employeService.createEmploye(employe);
-        return employeMapper.employeToEmployeDTO(createdEmploye);
-    }
-
-    // Add PUT and DELETE methods as needed
 }
