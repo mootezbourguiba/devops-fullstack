@@ -22,7 +22,7 @@ pipeline {
                 sh 'cd frontend && npm install'
                 sh 'cd frontend && npm run build'
             }
-        }
+        }/*
         stage('Docker Build') {
             steps {
                 sh 'docker-compose -f docker/docker-compose.yml build'
@@ -41,7 +41,7 @@ pipeline {
                     sh "docker logout"
                 }
             }
-        }
+        }*/
         stage('Deploy') {
             steps {
                 sshPublisher(publishers: [sshPublisherDesc(configName: 'VotreServeurDistant',
