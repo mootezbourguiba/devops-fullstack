@@ -44,8 +44,8 @@ public class EmployeService {
 
         // 2. Itérer sur les enregistrements et calculer les heures supplémentaires
         for (HeuresSup record : overtimeRecords) {
-            Date recordDate = record.getDate();
-            DayOfWeek dayOfWeek = DayOfWeek.of(recordDate.getDay());
+            LocalDate recordDate = record.getDate();
+            DayOfWeek dayOfWeek = recordDate.getDayOfWeek();
             Tarif tarif;
 
             // Déterminer si c'est un jour de week-end ou un jour de semaine

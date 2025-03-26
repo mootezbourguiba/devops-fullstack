@@ -11,6 +11,7 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.Date;
 
 @Entity
@@ -26,8 +27,8 @@ public class HeuresSup {
     @JoinColumn(name = "employe_id", nullable = false)
     private Employe employe;
 
-    @Temporal(TemporalType.DATE)
-    private Date date;
+
+    private LocalDate date;
 
     private float nbHeures;
 }
