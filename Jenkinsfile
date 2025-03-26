@@ -1,15 +1,14 @@
 pipeline {
-    agent { docker { image 'maven:3.8.4-openjdk-17' } } // ou une image personnalisée avec Java, Maven, Docker
+    agent { docker { image 'maven:3.8.4-openjdk-17' } }
     environment {
-        DOCKERHUB_USERNAME = "mootezbourguiba" // **Remplacez par VOTRE nom d'utilisateur Docker Hub**
-        IMAGE_FRONTEND = "${DOCKERHUB_USERNAME}/devops-frontend:latest" // Nom de l'image Docker Hub du frontend
-        IMAGE_BACKEND = "${DOCKERHUB_USERNAME}/devops-backend:latest" // Nom de l'image Docker Hub du backend
+        DOCKERHUB_USERNAME = "mootezbourguiba" // REMPLACEZ PAR VOTRE NOM D'UTILISATEUR
+        IMAGE_FRONTEND = "${DOCKERHUB_USERNAME}/devops-frontend:latest"
+        IMAGE_BACKEND = "${DOCKERHUB_USERNAME}/devops-backend:latest"
     }
-
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/mootezbourguiba/devops-fullstack.git' // URL de votre dépôt Git
+                git 'https://github.com/mootezbourguiba/devops-fullstack.git'
             }
         }
         stage('Build et test Backend') {
@@ -21,17 +20,19 @@ pipeline {
         stage('Build Frontend') {
             steps {
                 sh 'cd frontend && npm install'
-                sh 'cd frontend && npm run build' // Ou votre commande de build
+                sh 'cd frontend && npm run build'
             }
         }
         stage('Docker Build') {
-           steps {
+            steps {
                 sh 'docker-compose -f docker/docker-compose.yml build'
             }
         }
         stage('Docker Push') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKERHUB_PASSWORD', usernameVariable: 'DOCKERHUB_USERNAME')]) {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', 
+                                               passwordVariable: 'DOCKERHUB_PASSWORD', 
+                                               usernameVariable: 'DOCKERHUB_USERNAME')]) {
                     sh "docker login -u ${DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}"
                     sh "docker tag docker-frontend ${IMAGE_FRONTEND}"
                     sh "docker push ${IMAGE_FRONTEND}"
@@ -43,11 +44,14 @@ pipeline {
         }
         stage('Deploy') {
             steps {
-                // Déploiement via SSH sur un serveur distant (Exemple !)
-                sshPublisher(publishers: [sshPublisherDesc(configName: 'VotreServeurDistant', //Connexion SSH configurée dans Jenkins
-                    transfers: [sshTransfer(cleanRemote: false, excludes: '', remoteDirectory: '/chemin/vers/deploy', removePrefix: '', sourceFiles: 'docker/docker-compose.yml')]
-                    )] )
-                sshCommand remoteCommand: 'docker-compose -f /chemin/vers/deploy/docker-compose.yml up -d', //Exécution de la commande distante
+                sshPublisher(publishers: [sshPublisherDesc(configName: 'VotreServeurDistant',
+                                                      transfers: [sshTransfer(cleanRemote: false, 
+                                                                            excludes: '', 
+                                                                            remoteDirectory: '/chemin/vers/deploy', 
+                                                                            removePrefix: '', 
+                                                                            sourceFiles: 'docker/docker-compose.yml')]
+                )])
+                sshCommand remoteCommand: 'docker-compose -f /chemin/vers/deploy/docker-compose.yml up -d'
             }
         }
     }
