@@ -9,10 +9,7 @@ RUN mvn clean package -DskipTests
 FROM openjdk:17-jdk-slim
 WORKDIR /app
 
-RUN apt-get update 
-RUN apt-get install -y apt-utils curl telnet mariadb-client
-
-COPY --from=builder /app/target/*.jar app.jar
+COPY --from=builder /app/target/devops-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8080
 
