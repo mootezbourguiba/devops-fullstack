@@ -1,108 +1,156 @@
+// Jenkinsfile complet et corrigé
 pipeline {
+    // Agent 'none' au niveau global car chaque étape définit son propre agent si nécessaire
     agent none
 
+    // Définition des variables d'environnement pour le pipeline
     environment {
-        DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials'
-        DOCKERHUB_USERNAME       = "mootezbourguiba365"
-        IMAGE_FRONTEND           = "${DOCKERHUB_USERNAME}/devops-frontend:latest"
-        IMAGE_BACKEND            = "${DOCKERHUB_USERNAME}/devops-backend:latest"
-        SSH_CREDENTIALS_ID       = 'ssh-credentials-mon-serveur'
-        REMOTE_DEPLOY_PATH       = '/home/user/devops-app'
+        DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials' // ID des credentials DockerHub dans Jenkins
+        DOCKERHUB_USERNAME       = "mootezbourguiba365"     // Votre nom d'utilisateur DockerHub
+        IMAGE_FRONTEND           = "${DOCKERHUB_USERNAME}/devops-frontend:latest" // Nom complet de l'image Docker frontend
+        IMAGE_BACKEND            = "${DOCKERHUB_USERNAME}/devops-backend:latest"  // Nom complet de l'image Docker backend
+        SSH_CREDENTIALS_ID       = 'ssh-credentials-mon-serveur' // ID des credentials SSH pour le serveur de déploiement
+        REMOTE_DEPLOY_PATH       = '/home/user/devops-app'      // Chemin de déploiement sur le serveur distant
     }
 
     stages {
+        // Étape 1: Récupérer le code source depuis le SCM (Git)
         stage('Checkout SCM') {
-            agent any
+            agent any // Peut s'exécuter sur n'importe quel agent disponible
             steps {
-                checkout scm
+                checkout scm // Commande Jenkins pour cloner le dépôt configuré dans le job
             }
         }
 
+        // Étape 2: Construire le Backend (application Java/Maven)
         stage('Build Backend') {
             agent {
+                // Utilisation d'un conteneur Docker comme environnement de build
                 docker {
-                    image 'maven:3.8.6-openjdk-17'
-                    args '-v \$HOME/.m2:/root/.m2'  // Échappement du $ dans le volume
+                    image 'maven:3.8.6-openjdk-17' // Image Docker Maven avec Java 17
+                    // Monte le cache Maven local pour accélérer les builds futurs
+                    // Note: '\$' est utilisé ici car les 'args' sont entre apostrophes simples (''),
+                    // ce qui désactive l'interpolation Groovy. Le '\' échappe le '$' pour le shell Docker.
+                    args '-v $HOME/.m2:/root/.m2'
                 }
             }
             steps {
+                // Se positionner dans le répertoire du backend
                 dir('devops-fullstack/backend/backendDevops') {
-                    sh ''' 
-                        set -ex
-                        echo "Chemin actuel : \$$(pwd)"  // Utilisation de \$ pour afficher $ dans la commande shell
-                        ls -la
-                        mvn clean package
+                    // Exécuter les commandes de build Maven dans le conteneur
+                    // Note: Utilisation d'apostrophes simples (''') pour désactiver l'interpolation Groovy.
+                    // '\$' devant '$(pwd)' est nécessaire pour que le shell affiche le '$' littéralement.
+                    sh '''
+                        set -ex # Affiche les commandes et arrête en cas d'erreur
+                        echo "Début du build Backend dans le répertoire : $(pwd)"
+                        ls -la # Lister les fichiers pour le débogage
+                        mvn clean package # Nettoyer et compiler le projet Maven
                     '''
                 }
             }
         }
 
+        // Étape 3: Construire le Frontend (application Node.js)
         stage('Build Frontend') {
             agent {
+                // Utilisation d'un conteneur Docker Node.js comme environnement de build
                 docker {
-                    image 'node:20-alpine'
-                    args '-u root'
+                    image 'node:20-alpine' // Image Docker Node.js
+                    args '-u root'         // Exécuter en tant que root si nécessaire pour les permissions npm
                 }
             }
             steps {
+                // Se positionner dans le répertoire du frontend
                 dir('frontend') {
+                    // Exécuter les commandes de build npm
+                    // Note: Apostrophes simples (''') pour éviter les problèmes d'interpolation Groovy.
                     sh '''
                         set -ex
-                        npm install
-                        npm run build
+                        echo "Début du build Frontend dans le répertoire : $(pwd)"
+                        npm install     # Installer les dépendances Node.js
+                        npm run build   # Construire l'application frontend
                     '''
                 }
             }
         }
 
+        // Étape 4: Construire les images Docker et les pousser vers DockerHub
         stage('Docker Build & Push') {
-            agent any
+            agent any // Peut s'exécuter sur n'importe quel agent où Docker est disponible
             steps {
+                // Utiliser les credentials DockerHub stockés dans Jenkins
                 withCredentials([usernamePassword(
-                    credentialsId: env.DOCKERHUB_CREDENTIALS_ID,
-                    passwordVariable: 'DOCKERHUB_PASSWORD',
-                    usernameVariable: 'DOCKERHUB_USERNAME'
+                    credentialsId: env.DOCKERHUB_CREDENTIALS_ID, // Utilise l'ID défini en haut
+                    passwordVariable: 'DOCKERHUB_PASSWORD',      // Variable Groovy pour le mot de passe
+                    usernameVariable: 'DOCKERHUB_USERNAME_VAR'   // Variable Groovy pour l'username (évite conflit avec env.DOCKERHUB_USERNAME)
                 )]) {
-                    script {
-                        sh "docker login -u ${env.DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}"
-                        
+                    script { // Bloc script nécessaire pour utiliser des variables de withCredentials dans sh
+                        // Connexion à DockerHub
+                        // Utilisation de guillemets doubles ("") - ${...} est interprété par Groovy
+                        sh "docker login -u ${DOCKERHUB_USERNAME_VAR} -p ${DOCKERHUB_PASSWORD}"
+
+                        // Construire et pousser l'image backend
                         dir('devops-fullstack/backend/backendDevops') {
+                            // Guillemets doubles (""") - ${...} interprété par Groovy
                             sh """
+                                echo "Build et Push de l'image Backend: ${env.IMAGE_BACKEND}"
                                 docker build -t ${env.IMAGE_BACKEND} .
                                 docker push ${env.IMAGE_BACKEND}
                             """
                         }
 
+                        // Construire et pousser l'image frontend
                         dir('frontend') {
+                            // Guillemets doubles (""") - ${...} interprété par Groovy
                             sh """
+                                echo "Build et Push de l'image Frontend: ${env.IMAGE_FRONTEND}"
                                 docker build -t ${env.IMAGE_FRONTEND} .
                                 docker push ${env.IMAGE_FRONTEND}
                             """
                         }
-                    }
-                }
+                    } // fin script
+                } // fin withCredentials
             }
         }
 
+        // Étape 5: Déployer l'application sur le serveur distant via SSH
         stage('Deploy') {
-            agent any
+            agent any // S'exécute sur un agent capable de faire du SSH
             steps {
+                // Utiliser les credentials SSH stockés dans Jenkins
                 sshagent([env.SSH_CREDENTIALS_ID]) {
+                    // Exécuter des commandes scp et ssh
+                    // Guillemets doubles (""") - ${...} est interprété par Groovy.
+                    // *** CORRECTION APPLIQUÉE ICI: Suppression du '\' devant ${env.REMOTE_DEPLOY_PATH} ***
                     sh """
-                        scp docker-compose.yml user@server:\${env.REMOTE_DEPLOY_PATH}/  // Utilisation de \${} pour échappement
+                        set -ex
+                        echo "Déploiement vers user@server:${env.REMOTE_DEPLOY_PATH}"
+
+                        # Copier le fichier docker-compose.yml vers le serveur distant
+                        # La variable ${env.REMOTE_DEPLOY_PATH} est remplacée par sa valeur Jenkins AVANT l'exécution du shell.
+                        scp docker-compose.yml user@server:${env.REMOTE_DEPLOY_PATH}/
+
+                        # Se connecter en SSH et exécuter docker-compose
                         ssh user@server " \\
-                            cd \${env.REMOTE_DEPLOY_PATH} && \\
-                            docker compose up -d \\
+                            set -ex && \\
+                            echo 'Connexion SSH établie, déplacement vers ${env.REMOTE_DEPLOY_PATH}' && \\
+                            cd ${env.REMOTE_DEPLOY_PATH} && \\
+                            echo 'Pull des dernières images Docker...' && \\
+                            docker compose pull && \\ # Bonne pratique: Mettre à jour les images avant de lancer
+                            echo 'Lancement des services avec docker-compose...' && \\
+                            docker compose up -d \\ # Démarrer les services en arrière-plan
                         "
                     """
-                }
+                } // fin sshagent
             }
         }
-    }
+    } // fin stages
 
+    // Actions à exécuter après la fin du pipeline, quel que soit le résultat
     post {
         always {
-            cleanWs()
+            echo 'Nettoyage du workspace...'
+            cleanWs() // Nettoyer l'espace de travail Jenkins
         }
     }
-}
+} // fin pipeline
