@@ -27,6 +27,16 @@ pipeline {
                 checkout scm
             }
         }
+        stage('Debug Checkout') {
+            steps {
+        echo "🧐 Vérification du contenu après le checkout..."
+        sh "ls -R ${WORKSPACE}"
+    }
+        }
+
+    
+
+
 
         stage('Build et Test Backend') {
             steps {
