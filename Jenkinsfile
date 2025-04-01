@@ -10,7 +10,7 @@ pipeline {
         // Assurez-vous d'avoir configuré Maven avec ce nom
         maven 'apache-maven-3.8.6' // Ou le nom que vous avez choisi
         // Assurez-vous d'avoir configuré NodeJS avec ce nom
-        nodejs 'node-16'           // Ou le nom/version que vous avez choisi
+        nodejs 'node-20'           // Ou le nom/version que vous avez choisi
     }
 
     environment {
