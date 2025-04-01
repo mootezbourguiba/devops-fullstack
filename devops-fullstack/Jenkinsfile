@@ -27,9 +27,9 @@ pipeline {
             }
             steps {
                 dir('devops-fullstack/backend/backendDevops') {
-                    sh ''' # Correction cruciale avec guillemets simples
+                    sh ''' 
                         set -ex
-                        echo "Chemin actuel : $(pwd)" # Safe avec '''
+                        echo "Chemin actuel : $(pwd)"
                         ls -la
                         mvn clean package
                     '''
@@ -64,7 +64,7 @@ pipeline {
                     usernameVariable: 'DOCKERHUB_USERNAME'
                 )]) {
                     script {
-                        sh "docker login -u ${env.DOCKERHUB_USERNAME} -p ${env.DOCKERHUB_PASSWORD}"
+                        sh "docker login -u ${env.DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}"
                         
                         dir('devops-fullstack/backend/backendDevops') {
                             sh """
@@ -90,9 +90,9 @@ pipeline {
                 sshagent([env.SSH_CREDENTIALS_ID]) {
                     sh """
                         scp docker-compose.yml user@server:${env.REMOTE_DEPLOY_PATH}/
-                        ssh user@server "
-                            cd ${env.REMOTE_DEPLOY_PATH}
-                            docker compose up -d
+                        ssh user@server " \\
+                            cd ${env.REMOTE_DEPLOY_PATH} && \\
+                            docker compose up -d \\
                         "
                     """
                 }
