@@ -153,4 +153,8 @@ pipeline {
             cleanWs() // Nettoyer l'espace de travail Jenkins
         }
     }
+<<<<<<< HEAD
 } // fin pipeline
+=======
+} // fin pipeline
+>>>>>>> 884ac63796d6f974c0a35363a2e9d6e62e40a5ee
