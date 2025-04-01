@@ -27,12 +27,12 @@ pipeline {
             }
             steps {
                 dir('devops-fullstack/backend/backendDevops') {
-                    sh ''' 
+                    sh """
                         set -ex
-                        echo "Chemin actuel : \$(pwd)"  // Échappement du $ pour le shell
+                        echo "Chemin actuel : \\\$(pwd)"  // Double échappement pour Groovy et le shell
                         ls -la
                         mvn clean package
-                    '''
+                    """
                 }
             }
         }
@@ -46,11 +46,11 @@ pipeline {
             }
             steps {
                 dir('frontend') {
-                    sh '''
+                    sh """
                         set -ex
                         npm install
                         npm run build
-                    '''
+                    """
                 }
             }
         }
