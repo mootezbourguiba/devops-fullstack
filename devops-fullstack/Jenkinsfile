@@ -1,75 +1,63 @@
 pipeline {
-    agent any 
-
-    tools {
-        jdk 'jdk17'  
-        maven 'apache-maven-3.8.6'
-        nodejs 'node-20'
-    }
+    agent none
 
     environment {
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials'
         DOCKERHUB_USERNAME       = "mootezbourguiba365"
         IMAGE_FRONTEND           = "${DOCKERHUB_USERNAME}/devops-frontend:latest"
         IMAGE_BACKEND            = "${DOCKERHUB_USERNAME}/devops-backend:latest"
-
         SSH_CREDENTIALS_ID       = 'ssh-credentials-mon-serveur'
-        SSH_SERVER_NAME          = 'ssh-mon-serveur'
         REMOTE_DEPLOY_PATH       = '/home/user/devops-app'
     }
 
     stages {
         stage('Checkout') {
+            agent any
             steps {
                 echo '📥 Récupération du code depuis GitHub...'
                 checkout scm
             }
         }
 
-        stage('Debug Checkout') {
-            steps {
-                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                    echo "🧐 Vérification du contenu après le checkout..."
-                    sh """
-                        pwd
-                        ls -R ${WORKSPACE}
-                    """
+        stage('Build et Test Backend') {
+            agent {
+                docker {
+                    image 'maven:3.8.6-openjdk-17'
+                    args '-v $HOME/.m2:/root/.m2'
                 }
             }
-        }
-
-        stage('Build et Test Backend') {
             steps {
-                echo '⚙️ Construction et test du backend Spring Boot...'
-                dir('devops-fullstack/backend/backendDevops/pom.xml') {
-                    sh """
-                        set -e
-                        echo "📂 Chemin actuel : $(pwd)"
+                dir('devops-fullstack/backend/backendDevops') {
+                    sh '''  # Guillemets simples pour éviter les conflits
+                        set -ex
+                        echo "📂 Chemin actuel : $(pwd)"  # Maintenant sécurisé
                         ls -la
-                        if [ ! -f "pom.xml" ]; then
-                            echo "🚨 ERREUR : Le fichier pom.xml est introuvable !"
-                            exit 1
-                        fi
+                        [ -f pom.xml ] || { echo "🚨 ERREUR: pom.xml manquant"; exit 1; }
                         mvn clean package
-                    """
+                    '''
                 }
             }
             post {
                 success {
-                    archiveArtifacts artifacts: 'backend/backendDevops/target/*.jar', fingerprint: true
+                    archiveArtifacts artifacts: 'devops-fullstack/backend/backendDevops/target/*.jar', fingerprint: true
                 }
             }
         }
 
         stage('Build Frontend') {
+            agent {
+                docker {
+                    image 'node:20-alpine'
+                    args '-u root'
+                }
+            }
             steps {
-                echo '🌐 Construction du frontend React...'
                 dir('frontend') {
-                    sh """
-                        set -e
-                        npm install
+                    sh '''
+                        set -ex
+                        npm install --silent
                         npm run build
-                    """
+                    '''
                 }
             }
             post {
@@ -80,55 +68,46 @@ pipeline {
         }
 
         stage('Build et Push Docker Images') {
+            agent any
             steps {
-                echo "🐳 Connexion à Docker Hub (${DOCKERHUB_USERNAME})..."
-                withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID,
-                                                 passwordVariable: 'DOCKERHUB_PASSWORD',
-                                                 usernameVariable: 'DOCKERHUB_USER')]) {
-                    sh """
-                        set -e
-                        docker login -u '${DOCKERHUB_USERNAME}' -p '${DOCKERHUB_PASSWORD}'
-                    """
-
-                    echo "📦 Construction et push de l'image backend: ${IMAGE_BACKEND}"
-                    dir('backend/backendDevops') {
+                withCredentials([usernamePassword(
+                    credentialsId: env.DOCKERHUB_CREDENTIALS_ID,
+                    passwordVariable: 'DOCKERHUB_PASSWORD',
+                    usernameVariable: 'DOCKERHUB_USER'
+                )]) {
+                    script {
                         sh """
-                            set -e
-                            docker build -t ${IMAGE_BACKEND} .
-                            docker push ${IMAGE_BACKEND}
+                            docker login -u ${env.DOCKERHUB_USERNAME} -p ${env.DOCKERHUB_PASSWORD}
                         """
-                    }
+                        
+                        dir('devops-fullstack/backend/backendDevops') {
+                            sh """
+                                docker build -t ${env.IMAGE_BACKEND} .
+                                docker push ${env.IMAGE_BACKEND}
+                            """
+                        }
 
-                    echo "📦 Construction et push de l'image frontend: ${IMAGE_FRONTEND}"
-                    dir('frontend') {
-                        sh """
-                            set -e
-                            docker build -t ${IMAGE_FRONTEND} .
-                            docker push ${IMAGE_FRONTEND}
-                        """
+                        dir('frontend') {
+                            sh """
+                                docker build -t ${env.IMAGE_FRONTEND} .
+                                docker push ${env.IMAGE_FRONTEND}
+                            """
+                        }
                     }
-
-                    sh 'docker logout'
                 }
             }
         }
 
         stage('Deploy to Remote Server via SSH') {
+            agent any
             steps {
-                echo "🚀 Déploiement sur le serveur distant..."
                 sshagent(credentials: [env.SSH_CREDENTIALS_ID]) {
-                    echo "📤 Copie de docker-compose.yml vers ${REMOTE_DEPLOY_PATH}..."
                     sh """
-                        set -e
-                        scp -o StrictHostKeyChecking=no docker-compose.yml user@your_server_ip:${REMOTE_DEPLOY_PATH}/docker-compose.yml
-                    """
-
-                    echo "🔄 Exécution de docker-compose sur le serveur distant..."
-                    sh """
-                        ssh -o StrictHostKeyChecking=no user@your_server_ip "
-                        cd ${REMOTE_DEPLOY_PATH} &&
-                        docker-compose pull &&
-                        docker-compose up -d
+                        scp -o StrictHostKeyChecking=no docker-compose.yml user@server:${env.REMOTE_DEPLOY_PATH}/
+                        ssh -o StrictHostKeyChecking=no user@server "
+                            cd ${env.REMOTE_DEPLOY_PATH} 
+                            docker-compose pull
+                            docker-compose up -d
                         "
                     """
                 }
@@ -138,14 +117,16 @@ pipeline {
 
     post {
         always {
-            echo '🧹 Nettoyage du workspace...'
             cleanWs()
+            echo '🧹 Nettoyage terminé'
         }
         success {
-            echo '✅ Pipeline terminé avec succès !'
+            echo '✅ Pipeline réussi !'
+            slackSend color: 'good', message: "Build ${currentBuild.number} réussi"
         }
         failure {
-            echo '❌ Le Pipeline a échoué !'
+            echo '❌ Échec du pipeline'
+            slackSend color: 'danger', message: "Build ${currentBuild.number} a échoué"
         }
     }
 }
