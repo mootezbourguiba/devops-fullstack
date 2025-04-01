@@ -14,7 +14,6 @@ pipeline {
         stage('Checkout SCM') {
             agent any
             steps {
-                echo '🚚 Récupération du code source...'
                 checkout scm
             }
         }
@@ -23,18 +22,16 @@ pipeline {
             agent {
                 docker {
                     image 'maven:3.8.6-openjdk-17'
-                    args '-v $HOME/.m2:/root/.m2 --network host'
+                    args '-v $HOME/.m2:/root/.m2'
                 }
             }
             steps {
                 dir('devops-fullstack/backend/backendDevops') {
-                    sh ''' # Correction clé ici avec guillemets simples
-                        set -exo pipefail
-                        echo "🔍 Verification structure projet :"
-                        echo "Répertoire courant : $(pwd)"
+                    sh ''' # Correction cruciale avec guillemets simples
+                        set -ex
+                        echo "Chemin actuel : $(pwd)" # Safe avec '''
                         ls -la
-                        [ -f pom.xml ] || { echo "❌ Fichier pom.xml manquant"; exit 1; }
-                        mvn clean package -DskipTests
+                        mvn clean package
                     '''
                 }
             }
@@ -44,16 +41,14 @@ pipeline {
             agent {
                 docker {
                     image 'node:20-alpine'
-                    args '-u root --network host'
+                    args '-u root'
                 }
             }
             steps {
                 dir('frontend') {
-                    sh ''' # Guillemets simples ici aussi
-                        set -exo pipefail
-                        echo "📦 Installation des dépendances..."
-                        npm ci --silent
-                        echo "🏗️ Construction du build de production..."
+                    sh '''
+                        set -ex
+                        npm install
                         npm run build
                     '''
                 }
@@ -73,7 +68,7 @@ pipeline {
                         
                         dir('devops-fullstack/backend/backendDevops') {
                             sh """
-                                docker build -t ${env.IMAGE_BACKEND} . 
+                                docker build -t ${env.IMAGE_BACKEND} .
                                 docker push ${env.IMAGE_BACKEND}
                             """
                         }
@@ -94,11 +89,9 @@ pipeline {
             steps {
                 sshagent([env.SSH_CREDENTIALS_ID]) {
                     sh """
-                        scp -o StrictHostKeyChecking=no docker-compose.yml user@server:${env.REMOTE_DEPLOY_PATH}/
-                        ssh -o StrictHostKeyChecking=no user@server "
+                        scp docker-compose.yml user@server:${env.REMOTE_DEPLOY_PATH}/
+                        ssh user@server "
                             cd ${env.REMOTE_DEPLOY_PATH}
-                            docker compose down
-                            docker compose pull
                             docker compose up -d
                         "
                     """
@@ -109,29 +102,7 @@ pipeline {
 
     post {
         always {
-            echo "🧼 Nettoyage de l'espace de travail..."
             cleanWs()
-
-            script {
-                // Bonus : Debug des temps d'exécution
-                echo "⏱️ Détails de performance :"
-                echo "- Durée totale : ${currentBuild.durationString}"
-
-                def stages = currentBuild.rawBuild.getStages()
-                stages.each { stage ->
-                    echo "- ${stage.name} : ${stage.durationString}"
-                }
-            }
-        }
-        success {
-            echo "✅ Tout est opérationnel !"
-            slackSend color: 'good', 
-                     message: "SUCCÈS : Build #${env.BUILD_NUMBER} (${env.JOB_NAME})"
-        }
-        failure {
-            echo "❌ Une erreur critique est survenue"
-            slackSend color: 'danger',
-                     message: "ÉCHEC : Build #${env.BUILD_NUMBER} (${env.JOB_NAME})"
         }
     }
 }
