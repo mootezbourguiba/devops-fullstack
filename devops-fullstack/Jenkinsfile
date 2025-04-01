@@ -1,41 +1,135 @@
 pipeline {
-    agent any
+    agent any // Exécute sur n'importe quel agent disponible
+
+    tools {
+        jdk 'jdk17'  // JDK 17 configuré dans Jenkins
+        maven 'apache-maven-3.8.6' // Maven configuré dans Jenkins
+        nodejs 'node-20' // Node.js configuré dans Jenkins
+    }
+
+    environment {
+        // Docker Hub Credentials
+        DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials'
+        DOCKERHUB_USERNAME       = "mootezbourguiba365"
+        IMAGE_FRONTEND           = "${DOCKERHUB_USERNAME}/devops-frontend:latest"
+        IMAGE_BACKEND            = "${DOCKERHUB_USERNAME}/devops-backend:latest"
+
+        // SSH Deployment
+        SSH_CREDENTIALS_ID       = 'ssh-credentials-mon-serveur'
+        SSH_SERVER_NAME          = 'ssh-mon-serveur'
+        REMOTE_DEPLOY_PATH       = '/home/user/devops-app'
+    }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/mootezbourguiba/devops-fullstack.git'
+                echo '📥 Récupération du code depuis GitHub...'
+                checkout scm
             }
         }
 
-        stage('Build Backend') {
+        stage('Build et Test Backend') {
             steps {
-                dir('backend') {
-                    sh 'mvn clean package'
+                echo '⚙️ Construction et test du backend Spring Boot...'
+                dir('backend/backendDevops') {
+                    sh """
+                        set -e
+                        mvn clean package
+                    """
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'backend/backendDevops/target/*.jar', fingerprint: true
                 }
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build Frontend') {
             steps {
-                sh 'docker-compose build'
+                echo '🌐 Construction du frontend React...'
+                dir('frontend') {
+                    sh """
+                        set -e
+                        npm install
+                        npm run build
+                    """
+                }
             }
-        }
-
-        stage('Push Docker Images') {
-            steps {
-                withDockerRegistry([credentialsId: 'dockerhub-credentials']) {
-                    sh 'docker-compose push'
+            post {
+                success {
+                    archiveArtifacts artifacts: 'frontend/build/**', fingerprint: true
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Build et Push Docker Images') {
             steps {
-                sshagent(['ssh-server-credentials']) {
-                    sh 'ssh user@remote-server "docker-compose pull && docker-compose up -d"'
+                echo "🐳 Connexion à Docker Hub (${DOCKERHUB_USERNAME})..."
+                withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID,
+                                                 passwordVariable: 'DOCKERHUB_PASSWORD',
+                                                 usernameVariable: 'DOCKERHUB_USER')]) {
+                    sh """
+                        set -e
+                        docker login -u '${DOCKERHUB_USERNAME}' -p '${DOCKERHUB_PASSWORD}'
+                    """
+
+                    echo "📦 Construction de l'image backend: ${IMAGE_BACKEND}"
+                    dir('backend/backendDevops') {
+                        sh """
+                            set -e
+                            docker build -t ${IMAGE_BACKEND} .
+                        """
+                    }
+                    sh "docker push ${IMAGE_BACKEND}"
+
+                    echo "📦 Construction de l'image frontend: ${IMAGE_FRONTEND}"
+                    dir('frontend') {
+                        sh """
+                            set -e
+                            docker build -t ${IMAGE_FRONTEND} .
+                        """
+                    }
+                    sh "docker push ${IMAGE_FRONTEND}"
+
+                    sh 'docker logout'
                 }
             }
+        }
+
+        stage('Deploy to Remote Server via SSH') {
+            steps {
+                echo "🚀 Déploiement sur le serveur distant..."
+                sshagent(credentials: [env.SSH_CREDENTIALS_ID]) {
+                    echo "📤 Copie de docker-compose.yml vers ${REMOTE_DEPLOY_PATH}..."
+                    sh """
+                        set -e
+                        scp -o StrictHostKeyChecking=no docker-compose.yml user@your_server_ip:${REMOTE_DEPLOY_PATH}/docker-compose.yml
+                    """
+
+                    echo "🔄 Exécution de docker-compose sur le serveur distant..."
+                    sh """
+                        ssh -o StrictHostKeyChecking=no user@your_server_ip "
+                        cd ${REMOTE_DEPLOY_PATH} &&
+                        docker-compose pull &&
+                        docker-compose up -d
+                        "
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo '🧹 Nettoyage du workspace...'
+            cleanWs()
+        }
+        success {
+            echo '✅ Pipeline terminé avec succès !'
+        }
+        failure {
+            echo '❌ Le Pipeline a échoué !'
         }
     }
 }
