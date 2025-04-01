@@ -36,7 +36,7 @@ pipeline {
             steps {
                 echo 'Construction et test du backend Java (Spring Boot)...'
                 // Change de répertoire vers 'backend/backendDevops'
-                dir('backend') {
+                dir('backend/backendDevops') {
                     // Utilise Maven configuré dans 'tools'
                     sh "'${tool('apache-maven-3.8.6')}/bin/mvn' clean package"
                 }
