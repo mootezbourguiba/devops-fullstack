@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    restart: always
+    privileged: true
+    user: root
+
+volumes:
+  jenkins_home:
