@@ -1,20 +1,18 @@
 pipeline {
-    agent any // Exécute sur n'importe quel agent disponible
+    agent any 
 
     tools {
-        jdk 'jdk17'  // JDK 17 configuré dans Jenkins
-        maven 'apache-maven-3.8.6' // Maven configuré dans Jenkins
-        nodejs 'node-20' // Node.js configuré dans Jenkins
+        jdk 'jdk17'  
+        maven 'apache-maven-3.8.6'
+        nodejs 'node-20'
     }
 
     environment {
-        // Docker Hub Credentials
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials'
         DOCKERHUB_USERNAME       = "mootezbourguiba365"
         IMAGE_FRONTEND           = "${DOCKERHUB_USERNAME}/devops-frontend:latest"
         IMAGE_BACKEND            = "${DOCKERHUB_USERNAME}/devops-backend:latest"
 
-        // SSH Deployment
         SSH_CREDENTIALS_ID       = 'ssh-credentials-mon-serveur'
         SSH_SERVER_NAME          = 'ssh-mon-serveur'
         REMOTE_DEPLOY_PATH       = '/home/user/devops-app'
@@ -27,16 +25,18 @@ pipeline {
                 checkout scm
             }
         }
+
         stage('Debug Checkout') {
             steps {
-        echo "🧐 Vérification du contenu après le checkout..."
-        sh "ls -R ${WORKSPACE}"
-    }
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    echo "🧐 Vérification du contenu après le checkout..."
+                    sh """
+                        pwd
+                        ls -R ${WORKSPACE}
+                    """
+                }
+            }
         }
-
-    
-
-
 
         stage('Build et Test Backend') {
             steps {
@@ -44,6 +44,12 @@ pipeline {
                 dir('backend/backendDevops') {
                     sh """
                         set -e
+                        echo "📂 Chemin actuel : $(pwd)"
+                        ls -la
+                        if [ ! -f "pom.xml" ]; then
+                            echo "🚨 ERREUR : Le fichier pom.xml est introuvable !"
+                            exit 1
+                        fi
                         mvn clean package
                     """
                 }
@@ -84,23 +90,23 @@ pipeline {
                         docker login -u '${DOCKERHUB_USERNAME}' -p '${DOCKERHUB_PASSWORD}'
                     """
 
-                    echo "📦 Construction de l'image backend: ${IMAGE_BACKEND}"
+                    echo "📦 Construction et push de l'image backend: ${IMAGE_BACKEND}"
                     dir('backend/backendDevops') {
                         sh """
                             set -e
                             docker build -t ${IMAGE_BACKEND} .
+                            docker push ${IMAGE_BACKEND}
                         """
                     }
-                    sh "docker push ${IMAGE_BACKEND}"
 
-                    echo "📦 Construction de l'image frontend: ${IMAGE_FRONTEND}"
+                    echo "📦 Construction et push de l'image frontend: ${IMAGE_FRONTEND}"
                     dir('frontend') {
                         sh """
                             set -e
                             docker build -t ${IMAGE_FRONTEND} .
+                            docker push ${IMAGE_FRONTEND}
                         """
                     }
-                    sh "docker push ${IMAGE_FRONTEND}"
 
                     sh 'docker logout'
                 }
