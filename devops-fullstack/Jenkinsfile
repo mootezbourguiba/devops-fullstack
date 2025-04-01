@@ -22,14 +22,14 @@ pipeline {
             agent {
                 docker {
                     image 'maven:3.8.6-openjdk-17'
-                    args '-v \$HOME/.m2:/root/.m2' // Échappement du $ pour le shell
+                    args '-v \$HOME/.m2:/root/.m2'  // Échappement du $
                 }
             }
             steps {
                 dir('devops-fullstack/backend/backendDevops') {
                     sh ''' 
                         set -ex
-                        echo "Chemin actuel : \$$(pwd)"  // Échappement du $ pour le shell
+                        echo "Chemin actuel : \$$(pwd)"  // Échappement du $ pour afficher le chemin
                         ls -la
                         mvn clean package
                     '''
@@ -106,3 +106,4 @@ pipeline {
         }
     }
 }
+
