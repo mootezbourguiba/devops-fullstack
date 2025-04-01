@@ -41,7 +41,7 @@ pipeline {
         stage('Build et Test Backend') {
             steps {
                 echo '⚙️ Construction et test du backend Spring Boot...'
-                dir('backend/backendDevops') {
+                dir('backend') {
                     sh """
                         set -e
                         echo "📂 Chemin actuel : $(pwd)"
