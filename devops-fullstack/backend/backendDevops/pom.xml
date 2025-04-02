@@ -1,31 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<<<<<<< HEAD
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-         https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-
-	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.7.5</version>
-		<relativePath/>
-	</parent>
-=======
-<project xmlns="http://maven.apache.org/POM/4.0.0" 
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
-         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>2.7.5</version>
-        <relativePath/>
+        <relativePath/> <!-- lookup parent from repository -->
     </parent>
->>>>>>> 884ac63796d6f974c0a35363a2e9d6e62e40a5ee
 
     <groupId>tn.esprit</groupId>
     <artifactId>devops</artifactId>
@@ -33,88 +17,110 @@
     <name>devops</name>
     <description>devops</description>
 
-<<<<<<< HEAD
-	<properties>
-		<java.version>17</java.version>
-		<maven.compiler.source>17</maven.compiler.source>
-		<maven.compiler.target>17</maven.compiler.target>
-		<org.mapstruct.version>1.5.3.Final</org.mapstruct.version>
-		<lombok.version>1.18.28</lombok.version>
-		<maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
-	</properties>
-
-	<!-- Les dépendances restent inchangées -->
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>${maven-compiler-plugin.version}</version>
-				<configuration>
-					<parameters>true</parameters>
-					<annotationProcessorPaths>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-							<version>${lombok.version}</version>
-						</path>
-						<path>
-							<groupId>org.mapstruct</groupId>
-							<artifactId>mapstruct-processor</artifactId>
-							<version>${org.mapstruct.version}</version>
-						</path>
-					</annotationProcessorPaths>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
-</project>
-=======
     <properties>
         <java.version>17</java.version>
+        <!-- Les lignes suivantes sont importantes pour s'assurer que Maven utilise Java 17 -->
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <org.mapstruct.version>1.5.3.Final</org.mapstruct.version>
-        <lombok.version>1.18.28</lombok.version>
-        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
+        <lombok.version>1.18.28</lombok.version> <!-- Vérifiez si c'est la dernière version compatible si besoin -->
+        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version> <!-- Version récente du compiler plugin -->
     </properties>
 
-    <!-- Les dépendances restent inchangées -->
+    <dependencies>
+        <!-- ================================================== -->
+        <!-- AJOUTEZ VOS DÉPENDANCES SPRING BOOT ICI           -->
+        <!-- (Exemple: web, data-jpa, mysql-connector, lombok) -->
+        <!-- ================================================== -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <!-- Ajoutez d'éventuelles exclusions ici si nécessaire -->
+        </dependency>
+
+         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version> <!-- Utilisation de la propriété -->
+            <optional>true</optional> <!-- Lombok n'est généralement pas nécessaire à l'exécution -->
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+         <!-- Dépendance pour MapStruct si vous l'utilisez -->
+         <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${org.mapstruct.version}</version>
+        </dependency>
+
+        <!-- Autres dépendances -->
+
+    </dependencies>
 
     <build>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                 <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
             </plugin>
-            
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <parameters>true</parameters>
+                    <source>${java.version}</source> <!-- Ajouté pour être explicite -->
+                    <target>${java.version}</target> <!-- Ajouté pour être explicite -->
+                    <parameters>true</parameters> <!-- Important pour la réflexion sur les noms de paramètres -->
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                             <version>${lombok.version}</version>
                         </path>
-                        <path>
+                        <!-- Assurez-vous que cette dépendance est aussi dans <dependencies> -->
+                         <path>
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
                             <version>${org.mapstruct.version}</version>
                         </path>
+                         <!-- Optionnel: si vous utilisez lombok avec mapstruct -->
+                         <path>
+                             <groupId>org.projectlombok</groupId>
+                             <artifactId>lombok-mapstruct-binding</artifactId>
+                             <version>0.2.0</version> <!-- Vérifiez la version compatible -->
+                         </path>
                     </annotationProcessorPaths>
+                     <compilerArgs>
+                        <arg>-Amapstruct.defaultComponentModel=spring</arg> <!-- Si vous utilisez MapStruct avec Spring -->
+                    </compilerArgs>
                 </configuration>
             </plugin>
         </plugins>
     </build>
 </project>
->>>>>>> 884ac63796d6f974c0a35363a2e9d6e62e40a5ee
