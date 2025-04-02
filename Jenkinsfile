@@ -22,6 +22,8 @@ pipeline {
             steps {
                 echo '📥 Récupération du code depuis GitHub...'
                 checkout scm
+                echo '>>> Contenu de la racine du workspace après checkout:'
+            sh 'ls -la' // <-- AJOUTER ICI pour voir la racine
             }
         }
 
