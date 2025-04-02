@@ -31,7 +31,7 @@ pipeline {
                 dir('devops-fullstack/backend/backendDevops') {
                     sh """
                         set -e
-                        echo "📂 Chemin actuel : $(pwd)"
+                        echo "📂 Chemin actuel : \$(pwd)"
                         mvn clean package
                     """
                 }
