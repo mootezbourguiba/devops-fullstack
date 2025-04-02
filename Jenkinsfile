@@ -1,4 +1,3 @@
-// Jenkinsfile (Recommandé pour votre configuration)
 pipeline {
     agent any
 
@@ -23,17 +22,17 @@ pipeline {
                 echo '📥 Récupération du code depuis GitHub...'
                 checkout scm
                 echo '>>> Contenu de la racine du workspace après checkout:'
-            sh 'ls -la' // <-- AJOUTER ICI pour voir la racine
+                sh 'ls -la'
             }
         }
 
         stage('Build et Test Backend') {
             steps {
                 echo '⚙️ Construction et test du backend Spring Boot...'
-                dir('devops-fullstack/backend/backendDevops') {
+                dir('backend/backendDevops') { // Assurez-vous que ce chemin est correct
                     echo ">>> Vérification du contenu du répertoire ($PWD):"
-                    sh 'ls -la'
-                    sh "mvn clean package"
+                    sh 'ls -la' // Vérifiez que le pom.xml est présent
+                    sh "mvn clean package" // Exécutez Maven
                 }
             }
             post {
