@@ -30,7 +30,7 @@ pipeline {
         stage('Build et Test Backend') {
             steps {
                 echo '⚙️ Construction et test du backend Spring Boot...'
-                dir('backend/backendDevops') {
+                dir('devops-fullstack/backend/backendDevops') {
                     echo ">>> Vérification du contenu du répertoire ($PWD):"
                     sh 'ls -la'
                     sh "mvn clean package"
