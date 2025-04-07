@@ -1,80 +1,70 @@
-// Jenkinsfile corrigé (Version Complète)
+// Jenkinsfile après résolution des conflits (basé sur HEAD)
 pipeline {
-<<<<<<< HEAD
-    agent any
+    agent any // Utilise n'importe quel agent disponible
 
-    // DÉFINITIONS DES OUTILS (pas de /*...*/ !)
+    // Définitions des outils à utiliser (configurés dans Jenkins -> Global Tool Configuration)
     tools {
-        jdk 'jdk17'                // Vérifiez le nom exact dans Jenkins -> Outils
-        maven 'apache-maven-3.8.6' // Vérifiez le nom exact dans Jenkins -> Outils
-        nodejs 'node-20'           // Vérifiez le nom exact dans Jenkins -> Outils
+        jdk 'jdk17'                // Nom de la config JDK 17 dans Jenkins
+        maven 'apache-maven-3.8.6' // Nom de la config Maven dans Jenkins
+        nodejs 'node-20'           // Nom de la config NodeJS dans Jenkins
     }
 
-    // DÉFINITIONS DE L'ENVIRONNEMENT (pas de /*...*/ !)
+    // Variables d'environnement pour le pipeline
     environment {
-        DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials' // ID dans Jenkins
-        DOCKERHUB_USERNAME       = "mootezbourguiba365"    // Votre user Docker Hub
-        IMAGE_FRONTEND           = "${DOCKERHUB_USERNAME}/devops-frontend:latest"
-        IMAGE_BACKEND            = "${DOCKERHUB_USERNAME}/devops-backend:latest"
-        SSH_CREDENTIALS_ID       = 'ssh-credentials-mon-serveur' // ID dans Jenkins
-        REMOTE_DEPLOY_PATH       = '/home/user/devops-app'       // !! METTEZ VOTRE VRAI CHEMIN SERVEUR !!
-=======
-    agent { docker { image 'maven:3.8.4-openjdk-17' } }
-    environment {
-        DOCKERHUB_USERNAME = "mootezbourguiba" // REMPLACEZ PAR VOTRE NOM D'UTILISATEUR
-        IMAGE_FRONTEND = "${DOCKERHUB_USERNAME}/devops-frontend:latest"
-        IMAGE_BACKEND = "${DOCKERHUB_USERNAME}/devops-backend:latest"
->>>>>>> 5fc7a19 (Ajout des nouveaux fichiers et mises à jour le 07/04)
+        DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials' // ID des credentials Docker Hub dans Jenkins
+        DOCKERHUB_USERNAME       = "mootezbourguiba73"     // TON username Docker Hub (!! Vérifie si c'est bien 73 ou 365 ??)
+        IMAGE_FRONTEND           = "${env.DOCKERHUB_USERNAME}/devops-frontend:latest" // Nom de l'image frontend
+        IMAGE_BACKEND            = "${env.DOCKERHUB_USERNAME}/devops-backend:latest"  // Nom de l'image backend
+        SSH_CREDENTIALS_ID       = 'ssh-credentials-mon-serveur' // ID des credentials SSH dans Jenkins
+        REMOTE_DEPLOY_PATH       = '/home/user/devops-app'       // !! METTRE LE VRAI CHEMIN SUR LE SERVEUR DISTANT !!
     }
+
     stages {
         stage('Checkout') {
             steps {
-<<<<<<< HEAD
                 echo '📥 Récupération du code depuis GitHub...'
-                checkout scm
+                checkout scm // Récupère le code depuis le SCM configuré dans le job Jenkins
                 echo '>>> Contenu de la racine du workspace après checkout:'
-                sh 'ls -la'
+                sh 'ls -la' // Affiche le contenu pour vérifier (utile pour le debug)
             }
         }
 
         stage('Build et Test Backend') {
             steps {
                 echo '⚙️ Construction et test du backend Spring Boot...'
-                dir('devops-fullstack/backend/backendDevops') { // Avec préfixe
+                // Exécute les commandes dans le sous-dossier du backend
+                dir('devops-fullstack/backend/backendDevops') {
                     sh 'echo ">>> Vérification du contenu du répertoire $(pwd):"'
-                    sh 'ls -la'
+                    sh 'ls -la' // Affiche le contenu pour vérifier
+                    // Utilise l'outil Maven configuré
+                    // 'package' compile, teste, et crée le JAR
                     sh "mvn clean package"
                 }
             }
             post {
                 success {
-                    archiveArtifacts artifacts: 'devops-fullstack/backend/backendDevops/target/*.jar', fingerprint: true // Avec préfixe
+                    // Archive le JAR créé en cas de succès
+                    archiveArtifacts artifacts: 'devops-fullstack/backend/backendDevops/target/*.jar', fingerprint: true
                 }
-=======
-                git 'https://github.com/mootezbourguiba/devops-fullstack.git'
             }
         }
-        stage('Build et test Backend') {
-            steps {
-                sh 'cd backendDevops && mvn clean install -DskipTests'
-                sh 'cd backendDevops && mvn test'
->>>>>>> 5fc7a19 (Ajout des nouveaux fichiers et mises à jour le 07/04)
-            }
-        }
+
         stage('Build Frontend') {
             steps {
-<<<<<<< HEAD
                 echo '🌐 Construction du frontend React...'
-                dir('devops-fullstack/frontend/frontenddevops') { // Avec préfixe
+                 // Exécute les commandes dans le sous-dossier du frontend
+                dir('devops-fullstack/frontend/frontenddevops') {
                     sh 'echo ">>> Vérification du contenu du répertoire $(pwd):"'
-                    sh 'ls -la'
-                    sh "npm install"
-                    sh "npm run build"
+                    sh 'ls -la' // Affiche le contenu pour vérifier
+                    // Utilise l'outil NodeJS configuré
+                    sh "npm install"      // Installe les dépendances
+                    sh "npm run build"   // Construit l'application React pour la production
                 }
             }
             post {
                 success {
-                    archiveArtifacts artifacts: 'devops-fullstack/frontend/frontenddevops/build/**', fingerprint: true // Avec préfixe
+                     // Archive le build frontend créé en cas de succès
+                    archiveArtifacts artifacts: 'devops-fullstack/frontend/frontenddevops/build/**', fingerprint: true
                 }
             }
         }
@@ -82,97 +72,72 @@ pipeline {
         stage('Build et Push Docker Images') {
             steps {
                 echo "🐳 Connexion à Docker Hub (${DOCKERHUB_USERNAME})..."
-                // DÉFINITION DES CREDENTIALS (pas de /*...*/ !)
+                // Utilise les credentials Jenkins pour se connecter à Docker Hub
                 withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID,
-                                               passwordVariable: 'DOCKERHUB_PASSWORD',
-                                               usernameVariable: 'DOCKERHUB_USER')]) {
+                                               passwordVariable: 'DOCKERHUB_PASSWORD', // La variable contiendra le mot de passe
+                                               usernameVariable: 'DOCKERHUB_USER')]) { // La variable contiendra le username (peut être différent de DOCKERHUB_USERNAME)
+
+                    // Connexion à Docker Hub en utilisant les variables injectées
+                    // Utilise DOCKERHUB_USER ici si différent de DOCKERHUB_USERNAME
                     sh "docker login -u '${env.DOCKERHUB_USERNAME}' -p '${DOCKERHUB_PASSWORD}'"
 
                     echo "🔨 Construction de l'image backend: ${IMAGE_BACKEND}"
-                    dir('devops-fullstack/backend/backendDevops') { // Avec préfixe
+                    // Construit l'image depuis le sous-dossier backend
+                    dir('devops-fullstack/backend/backendDevops') {
                         sh "docker build -t ${IMAGE_BACKEND} ."
                     }
                     echo "🚀 Push de l'image backend: ${IMAGE_BACKEND}"
                     sh "docker push ${IMAGE_BACKEND}"
 
                     echo "🔨 Construction de l'image frontend: ${IMAGE_FRONTEND}"
-                    dir('devops-fullstack/frontend/frontenddevops') { // Avec préfixe
+                    // Construit l'image depuis le sous-dossier frontend
+                    dir('devops-fullstack/frontend/frontenddevops') {
                         sh "docker build -t ${IMAGE_FRONTEND} ."
                     }
                     echo "🚀 Push de l'image frontend: ${IMAGE_FRONTEND}"
                     sh "docker push ${IMAGE_FRONTEND}"
 
+                    // Déconnexion de Docker Hub (bonne pratique)
                     sh 'docker logout'
                 }
             }
         }
 
         stage('Deploy to Remote Server via SSH') {
-            steps {
+             // Condition : Exécute seulement si on est sur la branche 'main'
+             // Adapte 'main' si ta branche de déploiement est différente (ex: 'production')
+             when { branch 'main' }
+             steps {
                 echo "🛰️ Déploiement sur le serveur distant via SSH..."
+                // Utilise les credentials SSH Jenkins
                 sshagent(credentials: [env.SSH_CREDENTIALS_ID]) {
                     echo "📄 Copie de docker-compose.yml vers ${REMOTE_DEPLOY_PATH} sur le serveur distant..."
-                     // !! REMPLACEZ user@your_server_ip !!
+                     // !! REMPLACE user@your_server_ip PAR LES VRAIES VALEURS !!
+                     // Suppose que le docker-compose pour le déploiement est à la racine du projet Git
                     sh "scp -o StrictHostKeyChecking=no docker-compose.yml user@your_server_ip:${REMOTE_DEPLOY_PATH}/docker-compose.yml"
 
                     echo "🚀 Exécution de docker-compose sur le serveur distant..."
-                     // !! REMPLACEZ user@your_server_ip !!
+                     // !! REMPLACE user@your_server_ip PAR LES VRAIES VALEURS !!
+                     // Navigue vers le dossier, pull les images poussées, et redémarre les services
                     sh "ssh -o StrictHostKeyChecking=no user@your_server_ip 'cd ${REMOTE_DEPLOY_PATH} && docker-compose pull && docker-compose up -d'"
                 }
             }
         }
     } // Fin stages
 
-    // DÉFINITION DU BLOC POST (pas de /*...*/ !)
+    // Actions à exécuter après la fin du pipeline
     post {
         always {
             echo '🧹 Nettoyage du workspace...'
-            cleanWs()
+            cleanWs() // Nettoie le workspace Jenkins
         }
         success {
             echo '✅ Pipeline terminé avec succès !'
+            // Envoyer une notification (Email, Slack...) ?
         }
         failure {
             echo '❌ Le Pipeline a échoué !'
+             // Envoyer une notification d'échec ?
         }
     }
 } // Fin pipeline
-=======
-                sh 'cd frontend && npm install'
-                sh 'cd frontend && npm run build'
-            }
-        }
-        stage('Docker Build') {
-            steps {
-                sh 'docker-compose -f docker/docker-compose.yml build'
-            }
-        }
-        stage('Docker Push') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', 
-                                               passwordVariable: 'DOCKERHUB_PASSWORD', 
-                                               usernameVariable: 'DOCKERHUB_USERNAME')]) {
-                    sh "docker login -u ${DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}"
-                    sh "docker tag docker-frontend ${IMAGE_FRONTEND}"
-                    sh "docker push ${IMAGE_FRONTEND}"
-                    sh "docker tag docker-backend ${IMAGE_BACKEND}"
-                    sh "docker push ${IMAGE_BACKEND}"
-                    sh "docker logout"
-                }
-            }
-        }
-        stage('Deploy') {
-            steps {
-                sshPublisher(publishers: [sshPublisherDesc(configName: 'VotreServeurDistant',
-                                                      transfers: [sshTransfer(cleanRemote: false, 
-                                                                            excludes: '', 
-                                                                            remoteDirectory: '/chemin/vers/deploy', 
-                                                                            removePrefix: '', 
-                                                                            sourceFiles: 'docker/docker-compose.yml')]
-                )])
-                sshCommand remoteCommand: 'docker-compose -f /chemin/vers/deploy/docker-compose.yml up -d'
-            }
-        }
-    }
-}
->>>>>>> 5fc7a19 (Ajout des nouveaux fichiers et mises à jour le 07/04)
