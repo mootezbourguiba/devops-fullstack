@@ -1,5 +1,6 @@
 // Jenkinsfile corrigé (Version Complète)
 pipeline {
+<<<<<<< HEAD
     agent any
 
     // DÉFINITIONS DES OUTILS (pas de /*...*/ !)
@@ -17,11 +18,18 @@ pipeline {
         IMAGE_BACKEND            = "${DOCKERHUB_USERNAME}/devops-backend:latest"
         SSH_CREDENTIALS_ID       = 'ssh-credentials-mon-serveur' // ID dans Jenkins
         REMOTE_DEPLOY_PATH       = '/home/user/devops-app'       // !! METTEZ VOTRE VRAI CHEMIN SERVEUR !!
+=======
+    agent { docker { image 'maven:3.8.4-openjdk-17' } }
+    environment {
+        DOCKERHUB_USERNAME = "mootezbourguiba" // REMPLACEZ PAR VOTRE NOM D'UTILISATEUR
+        IMAGE_FRONTEND = "${DOCKERHUB_USERNAME}/devops-frontend:latest"
+        IMAGE_BACKEND = "${DOCKERHUB_USERNAME}/devops-backend:latest"
+>>>>>>> 5fc7a19 (Ajout des nouveaux fichiers et mises à jour le 07/04)
     }
-
     stages {
         stage('Checkout') {
             steps {
+<<<<<<< HEAD
                 echo '📥 Récupération du code depuis GitHub...'
                 checkout scm
                 echo '>>> Contenu de la racine du workspace après checkout:'
@@ -42,11 +50,20 @@ pipeline {
                 success {
                     archiveArtifacts artifacts: 'devops-fullstack/backend/backendDevops/target/*.jar', fingerprint: true // Avec préfixe
                 }
+=======
+                git 'https://github.com/mootezbourguiba/devops-fullstack.git'
             }
         }
-
+        stage('Build et test Backend') {
+            steps {
+                sh 'cd backendDevops && mvn clean install -DskipTests'
+                sh 'cd backendDevops && mvn test'
+>>>>>>> 5fc7a19 (Ajout des nouveaux fichiers et mises à jour le 07/04)
+            }
+        }
         stage('Build Frontend') {
             steps {
+<<<<<<< HEAD
                 echo '🌐 Construction du frontend React...'
                 dir('devops-fullstack/frontend/frontenddevops') { // Avec préfixe
                     sh 'echo ">>> Vérification du contenu du répertoire $(pwd):"'
@@ -120,3 +137,42 @@ pipeline {
         }
     }
 } // Fin pipeline
+=======
+                sh 'cd frontend && npm install'
+                sh 'cd frontend && npm run build'
+            }
+        }
+        stage('Docker Build') {
+            steps {
+                sh 'docker-compose -f docker/docker-compose.yml build'
+            }
+        }
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', 
+                                               passwordVariable: 'DOCKERHUB_PASSWORD', 
+                                               usernameVariable: 'DOCKERHUB_USERNAME')]) {
+                    sh "docker login -u ${DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}"
+                    sh "docker tag docker-frontend ${IMAGE_FRONTEND}"
+                    sh "docker push ${IMAGE_FRONTEND}"
+                    sh "docker tag docker-backend ${IMAGE_BACKEND}"
+                    sh "docker push ${IMAGE_BACKEND}"
+                    sh "docker logout"
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sshPublisher(publishers: [sshPublisherDesc(configName: 'VotreServeurDistant',
+                                                      transfers: [sshTransfer(cleanRemote: false, 
+                                                                            excludes: '', 
+                                                                            remoteDirectory: '/chemin/vers/deploy', 
+                                                                            removePrefix: '', 
+                                                                            sourceFiles: 'docker/docker-compose.yml')]
+                )])
+                sshCommand remoteCommand: 'docker-compose -f /chemin/vers/deploy/docker-compose.yml up -d'
+            }
+        }
+    }
+}
+>>>>>>> 5fc7a19 (Ajout des nouveaux fichiers et mises à jour le 07/04)

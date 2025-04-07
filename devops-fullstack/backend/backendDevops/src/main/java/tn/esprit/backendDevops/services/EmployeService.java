@@ -36,31 +36,38 @@ public class EmployeService {
         return employeRepository.findById(id);
     }
 
-    public double calculateOvertime(int employeId, LocalDate startDate, LocalDate endDate) {
+    // Import nécessaire pour RuntimeException (si tu utilises une exception spécifique, importe-la)
+    // import java.lang.RuntimeException;
+    // Import nécessaire pour DayOfWeek si ce n'est pas déjà fait
+    // import java.time.DayOfWeek;
+
+    public double calculateOvertime(Long employeId, LocalDate startDate, LocalDate endDate) { // Changé int en Long pour employeId
         double totalOvertimePay = 0.0;
 
         // 1. Récupérer tous les enregistrements d'heures supplémentaires pour l'employé
+        // Utilise directement employeId (Long)
         List<HeuresSup> overtimeRecords = heuresSupRepository.findByEmployeIdAndDateBetween(employeId, startDate, endDate);
 
         // 2. Itérer sur les enregistrements et calculer les heures supplémentaires
         for (HeuresSup record : overtimeRecords) {
             LocalDate recordDate = record.getDate();
             DayOfWeek dayOfWeek = recordDate.getDayOfWeek();
-            Tarif tarif;
+            String typeJour;
 
-            // Déterminer si c'est un jour de week-end ou un jour de semaine
+            // Déterminer le type de jour
             if (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY) {
-                // Supposons qu'il n'y a qu'un seul tarif week-end, sinon vous devez récupérer le bon
-                tarif = tarifRepository.findByTypeJour("weekend");
-
+                typeJour = "weekend";
             } else {
-                // Supposons qu'il n'y a qu'un seul tarif de jour de semaine, sinon vous devez récupérer le bon
-                tarif = tarifRepository.findByTypeJour("jour ordinaire");
+                typeJour = "jour ordinaire";
             }
 
-            if (tarif != null) {
-                totalOvertimePay += record.getNbHeures() * tarif.getTarif();
-            }
+            // Récupérer le tarif correspondant. S'il n'est pas trouvé, lance une exception.
+            Tarif tarifApplicable = tarifRepository.findByTypeJour(typeJour)
+                    .orElseThrow(() -> new RuntimeException("Configuration Error: Tarif non trouvé pour le type : " + typeJour));
+
+            // Maintenant, nous sommes sûrs que tarifApplicable est un objet Tarif valide (non Optional)
+            // et non null. On peut accéder à son tarif.
+            totalOvertimePay += record.getNbHeures() * tarifApplicable.getTarif();
         }
 
         return totalOvertimePay;

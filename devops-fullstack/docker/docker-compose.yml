@@ -1,36 +1,55 @@
-version: "3.8"
+# Fichier: D:\...\devops-fullstack\docker\docker-compose.yml
+
+# version: "3.8" # Version optionnelle/obsolète, peut être retirée
 
 services:
   db:
     image: mysql:8.0
     restart: always
     environment:
+      # Définit le mot de passe root pour MySQL
       MYSQL_ROOT_PASSWORD: mootezmysql
+      # Crée automatiquement cette base de données au démarrage
       MYSQL_DATABASE: employee_management
     ports:
+      # Expose le port MySQL sur l'hôte (pour accès externe si besoin)
       - "3306:3306"
     volumes:
+      # Persiste les données de la base de données
       - db_data:/var/lib/mysql
 
   backend:
     build:
+      # Chemin relatif vers le dossier du backend (depuis le dossier 'docker')
       context: ../backend/backendDevops
     ports:
+      # Expose le port de l'application Spring Boot sur l'hôte
       - "8080:8080"
     depends_on:
+      # S'assure que 'db' démarre avant 'backend'
       - db
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/employee_management?serverTimezone=UTC
+      # Configuration de la connexion DB pour Spring Boot DANS LE CONTENEUR
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/employee_management?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: mootezmysql
+      SPRING_DATASOURCE_PASSWORD: mootezmysql # Doit correspondre à MYSQL_ROOT_PASSWORD
+      # --- CONFIGURATION CRUCIALE POUR L'INITIALISATION SQL ---
+      # Dit à Spring Boot d'exécuter schema.sql et data.sql au démarrage
+      SPRING_SQL_INIT_MODE: always
+      # Empêche Hibernate de créer/modifier les tables (car schema.sql le fait)
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
 
   frontend:
     build:
+      # Chemin relatif vers le dossier du frontend (depuis le dossier 'docker')
       context: ../frontend/frontenddevops
     ports:
+      # Expose le port du serveur web (Nginx) du frontend sur l'hôte
       - "4200:80"
     depends_on:
+      # Dépend logiquement du backend
       - backend
 
 volumes:
+  # Définit le volume nommé pour la persistance de la DB
   db_data:

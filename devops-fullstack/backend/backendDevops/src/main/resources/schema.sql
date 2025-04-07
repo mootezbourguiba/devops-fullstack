@@ -1,20 +1,1 @@
-CREATE TABLE Employe (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(255),
-    prenom VARCHAR(255),
-    poste VARCHAR(255)
-);
-
-CREATE TABLE Heures_Sup (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    employe_id INT,
-    date DATE,
-    nb_heures FLOAT,
-    FOREIGN KEY (employe_id) REFERENCES Employe(id)
-);
-
-CREATE TABLE Tarif (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    type_jour VARCHAR(255),
-    tarif FLOAT
-);
+-- Supprime les tables si elles existent déjà (utile pour les redémarrages en dev)-- Attention: Ne pas utiliser en production sans précaution !DROP TABLE IF EXISTS heures_sup;DROP TABLE IF EXISTS tarif;DROP TABLE IF EXISTS employe;-- Création de la table EmployeCREATE TABLE employe (    id BIGINT AUTO_INCREMENT PRIMARY KEY,    nom VARCHAR(255) NOT NULL,                        -- Nom de l'employé, requis    prenom VARCHAR(255) NOT NULL,                     -- Prénom de l'employé, requis    poste VARCHAR(255)                                -- Poste (peut être nul, comme défini dans l'entité améliorée));-- Création de la table TarifCREATE TABLE tarif (    id BIGINT AUTO_INCREMENT PRIMARY KEY,             -- Clé primaire auto-incrémentée    type_jour VARCHAR(50) NOT NULL UNIQUE,            -- "weekend" ou "jour ordinaire", requis et unique    tarif FLOAT NOT NULL                              -- Le taux horaire, requis (correspond à float));-- Création de la table HeuresSupCREATE TABLE heures_sup (    id BIGINT AUTO_INCREMENT PRIMARY KEY,             -- Clé primaire auto-incrémentée    employe_id BIGINT NOT NULL,                       -- Clé étrangère vers l'employé, requis    date DATE NOT NULL,                               -- Date de l'heure sup, requis (correspond à LocalDate)    nb_heures FLOAT NOT NULL,                         -- Nombre d'heures, requis (correspond à float)    FOREIGN KEY (employe_id) REFERENCES employe(id)   -- Déclaration de la contrainte de clé étrangère        ON DELETE RESTRICT                            -- Optionnel: comportement si l'employé est supprimé (RESTRICT par défaut)        ON UPDATE CASCADE                             -- Optionnel: comportement si l'ID employé est mis à jour (CASCADE));
