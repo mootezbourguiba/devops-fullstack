@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 // Importer le service
-import EmployeeService from '../services/EmployeeService'; // Assure-toi que ce chemin est correct
+import EmployeeService from './services/EmployeeService'; // Assure-toi que ce chemin est correct
 
 function EmployeeList() {
     const [employees, setEmployees] = useState([]);

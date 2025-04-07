@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 // *** ETAPE 1: Importer le service ***
-import EmployeeService from '../services/EmployeeService'; // Ajuste le chemin si nécessaire
+import EmployeeService from './services/EmployeeService'; // Ajuste le chemin si nécessaire
 
 function OvertimeCalculator() {
     const [employeeId, setEmployeeId] = useState('');
