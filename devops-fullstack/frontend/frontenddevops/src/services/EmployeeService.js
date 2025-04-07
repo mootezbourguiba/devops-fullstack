@@ -1,17 +1,16 @@
 import axios from 'axios';
 
-// *** CORRECTION: URL complète du backend ***
+// *** URL complète du backend ***
 // Pointe vers le serveur Spring Boot qui écoute sur le port 8080
 const API_BASE_URL = 'http://localhost:8080/api';
 
-// Renomme la fonction pour correspondre à ce qu'elle fait et utilise la nouvelle URL
+// Fonction pour récupérer tous les employés
 const getEmployees = () => {
-    // *** CORRECTION: Utilise l'URL de base + le chemin spécifique ***
-    // Note: L'endpoint dans EmployeController est /employees (avec un 's')
+    // Utilise l'URL de base + le chemin spécifique '/employees'
     return axios.get(`${API_BASE_URL}/employees`);
 };
 
-// *** NOUVELLE FONCTION : Calculer les heures sup ***
+// Fonction pour calculer les heures supplémentaires
 const calculateOvertime = (employeId, startDate, endDate) => {
     // Les dates doivent être au format YYYY-MM-DD
     const params = {
@@ -22,27 +21,19 @@ const calculateOvertime = (employeId, startDate, endDate) => {
     return axios.get(`${API_BASE_URL}/employees/${employeId}/overtime`, { params });
 };
 
-// *** NOUVELLE FONCTION : Ajouter des heures sup ***
+// Fonction pour ajouter des heures supplémentaires
 const addHeureSup = (heureSupData) => {
     // heureSupData est un objet JS, par exemple:
-    // {
-    //   date: "2024-04-10", // Format YYYY-MM-DD
-    //   nbHeures: 2.5,
-    //   employe: {
-    //     id: 1 // ID de l'employé auquel associer ces heures
-    //   }
-    // }
-    // Appelle POST /api/heures-sup avec les données dans le corps de la requête
+    // { date: "2024-04-10", nbHeures: 2.5, employe: { id: 1 } }
+    // Appelle POST /api/heures-sup
     return axios.post(`${API_BASE_URL}/heures-sup`, heureSupData);
 };
 
 // Regroupe et exporte les fonctions du service
 const EmployeeService = {
-    // Expose la fonction renommée
-    getAllEmployees: getEmployees, // Garde le nom externe si les composants l'utilisent déjà
+    getAllEmployees: getEmployees, // Expose la fonction
     calculateOvertime,
     addHeureSup
-    // Ajoute d'autres fonctions ici si nécessaire (getHeuresSup, etc.)
 };
 
 export default EmployeeService;
