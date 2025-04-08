@@ -1,4 +1,4 @@
-// Jenkinsfile après résolution des conflits (basé sur HEAD)
+// Jenkinsfile avec étape de test frontend
 pipeline {
     agent any // Utilise n'importe quel agent disponible
 
@@ -12,7 +12,7 @@ pipeline {
     // Variables d'environnement pour le pipeline
     environment {
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials' // ID des credentials Docker Hub dans Jenkins
-        DOCKERHUB_USERNAME       = "mootezbourguiba73"     // TON username Docker Hub (!! Vérifie si c'est bien 73 ou 365 ??)
+        DOCKERHUB_USERNAME       = "mootezbourguiba73"     // TON username Docker Hub
         IMAGE_FRONTEND           = "${env.DOCKERHUB_USERNAME}/devops-frontend:latest" // Nom de l'image frontend
         IMAGE_BACKEND            = "${env.DOCKERHUB_USERNAME}/devops-backend:latest"  // Nom de l'image backend
         SSH_CREDENTIALS_ID       = 'ssh-credentials-mon-serveur' // ID des credentials SSH dans Jenkins
@@ -49,15 +49,17 @@ pipeline {
             }
         }
 
-        stage('Build Frontend') {
+        // *** STAGE MODIFIÉ ***
+        stage('Build et Test Frontend') { // Nom du stage mis à jour
             steps {
-                echo '🌐 Construction du frontend React...'
+                echo '🌐 Construction et test du frontend React...' // Message mis à jour
                  // Exécute les commandes dans le sous-dossier du frontend
                 dir('devops-fullstack/frontend/frontenddevops') {
                     sh 'echo ">>> Vérification du contenu du répertoire $(pwd):"'
                     sh 'ls -la' // Affiche le contenu pour vérifier
                     // Utilise l'outil NodeJS configuré
                     sh "npm install"      // Installe les dépendances
+                    sh "npm test -- --watchAll=false" // *** LIGNE AJOUTEE / MODIFIEE ***
                     sh "npm run build"   // Construit l'application React pour la production
                 }
             }
@@ -68,6 +70,7 @@ pipeline {
                 }
             }
         }
+        // *** FIN STAGE MODIFIÉ ***
 
         stage('Build et Push Docker Images') {
             steps {
@@ -78,7 +81,6 @@ pipeline {
                                                usernameVariable: 'DOCKERHUB_USER')]) { // La variable contiendra le username (peut être différent de DOCKERHUB_USERNAME)
 
                     // Connexion à Docker Hub en utilisant les variables injectées
-                    // Utilise DOCKERHUB_USER ici si différent de DOCKERHUB_USERNAME
                     sh "docker login -u '${env.DOCKERHUB_USERNAME}' -p '${DOCKERHUB_PASSWORD}'"
 
                     echo "🔨 Construction de l'image backend: ${IMAGE_BACKEND}"
@@ -105,7 +107,6 @@ pipeline {
 
         stage('Deploy to Remote Server via SSH') {
              // Condition : Exécute seulement si on est sur la branche 'main'
-             // Adapte 'main' si ta branche de déploiement est différente (ex: 'production')
              when { branch 'main' }
              steps {
                 echo "🛰️ Déploiement sur le serveur distant via SSH..."
@@ -118,7 +119,6 @@ pipeline {
 
                     echo "🚀 Exécution de docker-compose sur le serveur distant..."
                      // !! REMPLACE user@your_server_ip PAR LES VRAIES VALEURS !!
-                     // Navigue vers le dossier, pull les images poussées, et redémarre les services
                     sh "ssh -o StrictHostKeyChecking=no user@your_server_ip 'cd ${REMOTE_DEPLOY_PATH} && docker-compose pull && docker-compose up -d'"
                 }
             }
@@ -133,11 +133,9 @@ pipeline {
         }
         success {
             echo '✅ Pipeline terminé avec succès !'
-            // Envoyer une notification (Email, Slack...) ?
         }
         failure {
             echo '❌ Le Pipeline a échoué !'
-             // Envoyer une notification d'échec ?
         }
     }
 } // Fin pipeline
