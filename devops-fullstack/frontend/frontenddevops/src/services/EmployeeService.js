@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // *** URL complète du backend ***
 // Pointe vers le serveur Spring Boot qui écoute sur le port 8080
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'http://localhost:8081/api';
 
 // Fonction pour récupérer tous les employés
 const getEmployees = () => {
