@@ -1,0 +1,64 @@
+# Fichier: docker-compose.prod.yml (à la racine du projet Git)
+# Utilisé pour le déploiement sur le serveur distant (VM) par Jenkins.
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0 # Utilise l'image officielle MySQL 8.0
+    container_name: prod-db # Nom distinct pour l'environnement de production
+    restart: always
+    environment:
+      # !!! ATTENTION : Pour une vraie production, ces secrets devraient être gérés
+      # de manière plus sécurisée (secrets Docker, variables d'environnement injectées par Jenkins, etc.) !!!
+      # Utilise une variable d'environnement (ex: DB_ROOT_PASSWORD) si définie, sinon la valeur par défaut 'mootezmysql'
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-mootezmysql}
+      MYSQL_DATABASE: ${DB_NAME:-employee_management} # Variable pour le nom de la DB ou défaut
+    volumes:
+      - prod_db_data:/var/lib/mysql # Volume nommé spécifique à la production pour la persistance
+    networks:
+      - prod-network # Connecte au réseau dédié
+
+  backend:
+    # --- Utilise l'image pré-construite depuis Docker Hub ---
+    image: ${DOCKERHUB_USERNAME:-mootezbourguiba73}/devops-backend:latest # Variable Jenkins ou user par défaut
+    container_name: prod-backend
+    restart: always
+    depends_on:
+      - db # Démarre après la base de données
+    environment:
+      # Pointe vers le service 'db' sur le réseau Docker 'prod-network'
+      # Note: createDatabaseIfNotExist=false -> la DB doit être créée par le service 'db'
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${DB_NAME:-employee_management}?createDatabaseIfNotExist=false&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_ROOT_PASSWORD:-mootezmysql} # Doit correspondre à celui de la DB
+      # --- Configuration spécifique Production ---
+      SPRING_SQL_INIT_MODE: never    # Ne PAS exécuter schema.sql/data.sql en production
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate # Valide juste que le schéma DB correspond aux entités
+      # Ajouter ici d'autres variables d'environnement nécessaires pour la prod
+      # Exemple: SERVER_PORT: 8080 (si différent)
+    ports:
+      # Mappe le port 8080 du conteneur au port 8080 de la VM (serveur distant)
+      - "8080:8080"
+    networks:
+      - prod-network # Connecte au réseau dédié
+
+  frontend:
+    # --- Utilise l'image pré-construite depuis Docker Hub ---
+    image: ${DOCKERHUB_USERNAME:-mootezbourguiba73}/devops-frontend:latest # Variable Jenkins ou user par défaut
+    container_name: prod-frontend
+    restart: always
+    ports:
+      # Mappe le port 80 du conteneur Nginx au port 80 de la VM (port web standard)
+      - "80:80"
+    depends_on:
+      - backend # Dépend logiquement du backend
+    networks:
+      - prod-network # Connecte au réseau dédié
+
+volumes:
+  # Définit le volume nommé pour la persistance des données de la DB de production
+  prod_db_data:
+
+networks:
+  # Définit le réseau Docker dédié pour cet environnement
+  prod-network:
