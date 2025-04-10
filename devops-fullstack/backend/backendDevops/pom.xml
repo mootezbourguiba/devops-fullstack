@@ -8,13 +8,13 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>2.7.5</version>
-        <relativePath/>
+        <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
     <groupId>tn.esprit</groupId>
-    <artifactId>devops</artifactId>
+    <artifactId>devops</artifactId> <!-- Assure-toi que c'est le bon artifactId, le log montrait "devops" mais ton dossier s'appelle backendDevops -->
     <version>0.0.1-SNAPSHOT</version>
-    <name>devops</name>
+    <name>backendDevops</name> <!-- J'ai mis le nom du dossier ici pour cohérence, ajuste si nécessaire -->
     <description>Application DevOps Spring Boot</description>
 
     <properties>
@@ -22,7 +22,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <org.mapstruct.version>1.5.3.Final</org.mapstruct.version>
-        <lombok.version>1.18.28</lombok.version>
+        <lombok.version>1.18.28</lombok.version> <!-- Vérifie si cette version est compatible avec MapStruct/Lombok binding, parfois des ajustements sont nécessaires -->
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
     </properties>
 
@@ -39,7 +39,7 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- MySQL Connector -->
+        <!-- MySQL Connector (runtime: seulement nécessaire pour l'exécution, pas la compilation/test) -->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
@@ -50,7 +50,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
+            <version>${lombok.version}</version> <!-- Version spécifiée car pas toujours gérée par le parent -->
             <optional>true</optional>
         </dependency>
 
@@ -67,6 +67,20 @@
             <artifactId>mapstruct</artifactId>
             <version>${org.mapstruct.version}</version>
         </dependency>
+
+        <!-- ================================================ -->
+        <!-- === AJOUT POUR LES TESTS UNITAIRES/INTÉGRATION === -->
+        <!-- ================================================ -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope> <!-- Important: H2 ne sera utilisé que pour les tests -->
+            <!-- Pas de version spécifiée ici, Spring Boot Parent POM gère une version compatible -->
+        </dependency>
+        <!-- ================================================ -->
+        <!-- =========== FIN DE L'AJOUT POUR TESTS ========== -->
+        <!-- ================================================ -->
+
     </dependencies>
 
     <build>
@@ -91,7 +105,7 @@
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
-                    <parameters>true</parameters>
+                    <parameters>true</parameters> <!-- Bon pour la réflexion sur les noms de paramètres -->
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
@@ -103,12 +117,14 @@
                             <artifactId>mapstruct-processor</artifactId>
                             <version>${org.mapstruct.version}</version>
                         </path>
+                        <!-- Ajout pour que Lombok et MapStruct fonctionnent bien ensemble -->
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok-mapstruct-binding</artifactId>
-                            <version>0.2.0</version>
+                            <version>0.2.0</version> <!-- Version standard pour le binding -->
                         </path>
                     </annotationProcessorPaths>
+                    <!-- Spécifie le modèle de composant par défaut pour MapStruct (bon pour l'injection) -->
                     <compilerArgs>
                         <arg>-Amapstruct.defaultComponentModel=spring</arg>
                     </compilerArgs>
