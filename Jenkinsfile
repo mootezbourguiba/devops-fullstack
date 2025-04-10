@@ -170,3 +170,169 @@ pipeline {
         }
     } // Fin post
 } // Fin pipeline
+
+// Jenkinsfile FINAL v6 (Retour à agent any, docker client installé dans Jenkins Controller)
+pipeline {
+    agent any // Exécute sur l'agent par défaut (le contrôleur Jenkins)
+
+    // Définitions des outils à utiliser (configurés dans Jenkins -> Global Tool Configuration)
+    tools {
+        jdk 'jdk17'                // Assure-toi que ce nom correspond
+        maven 'apache-maven-3.8.6' // Assure-toi que ce nom correspond
+        nodejs 'node-20'           // Assure-toi que ce nom correspond
+        git 'Default'              // Assure-toi que ce nom correspond
+    }
+
+    // Variables d'environnement pour le pipeline
+    environment {
+        // --- Credentials Jenkins ---
+        DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials'
+        SSH_CREDENTIALS_ID       = 'ssh-credentials-mon-serveur'
+
+        // --- Configuration Docker Hub ---
+        DOCKERHUB_USERNAME       = "mootezbourguiba73"     // TON username Docker Hub
+        IMAGE_NAME_BACKEND       = "devops-backend"
+        IMAGE_NAME_FRONTEND      = "devops-frontend"
+        IMAGE_BACKEND            = "${env.DOCKERHUB_USERNAME}/${env.IMAGE_NAME_BACKEND}:latest"
+        IMAGE_FRONTEND           = "${env.DOCKERHUB_USERNAME}/${env.IMAGE_NAME_FRONTEND}:latest"
+
+        // --- Configuration Déploiement SSH ---
+        REMOTE_USER              = "mootez"                              // Username sur la VM Ubuntu
+        REMOTE_HOST              = "localhost"                           // Connexion via redirection de port VBox
+        REMOTE_PORT              = "2222"                                // Port hôte redirigé
+        REMOTE_DEPLOY_PATH       = "/home/${env.REMOTE_USER}/devops-app" // Chemin sur la VM
+        PROD_COMPOSE_FILE        = "docker-compose.prod.yml"             // Fichier à la racine Git
+        REMOTE_COMPOSE_FILENAME  = "docker-compose.yml"                  // Nom sur le serveur distant
+
+        // --- Modification du PATH Complète ---
+        // Ajoute les chemins des outils au PATH de l'agent Jenkins
+        PATH = "${tool 'Default'}/bin:${tool 'jdk17'}/bin:${tool 'apache-maven-3.8.6'}/bin:${tool 'node-20'}/bin:${env.PATH}"
+    }
+
+    stages {
+        stage('1. Checkout') {
+            steps {
+                echo "📥 [${env.BRANCH_NAME}] Récupération du code depuis GitHub..."
+                // Utilise le Git défini dans PATH ou trouvé par Jenkins
+                sh 'git --version'
+                checkout scm
+                echo '>>> Workspace après checkout:'
+                sh 'ls -la'
+            }
+        }
+
+        stage('2. Build et Test Backend') {
+            steps {
+                echo "⚙️ [${env.BRANCH_NAME}] Build/Test backend..."
+                dir('devops-fullstack/backend/backendDevops') {
+                    sh 'echo ">>> Java Version:"'
+                    sh 'java -version'
+                    sh 'echo ">>> Maven Version:"'
+                    sh 'mvn -v'
+                    sh "mvn clean package" // Compile, teste, package
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'devops-fullstack/backend/backendDevops/target/*.jar', fingerprint: true
+                }
+            }
+        }
+
+        stage('3. Build et Test Frontend') {
+            steps {
+                echo "🌐 [${env.BRANCH_NAME}] Build/Test frontend..."
+                dir('devops-fullstack/frontend/frontenddevops') {
+                    sh 'echo ">>> Node Version:"'
+                    sh 'node -v'
+                    sh 'echo ">>> NPM Version:"'
+                    sh 'npm -v'
+                    sh "npm install"
+                    sh "npm test -- --watchAll=false"
+                    sh "npm run build"
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'devops-fullstack/frontend/frontenddevops/build/**', fingerprint: true
+                }
+            }
+        }
+
+        stage('4. Build et Push Docker Images') {
+            steps {
+                // Vérifie que la commande docker est accessible
+                // (Celle installée dans le conteneur Jenkins Controller)
+                sh 'docker --version'
+                withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID,
+                                               passwordVariable: 'DOCKERHUB_PASSWORD',
+                                               usernameVariable: 'DOCKERHUB_USER')]) {
+
+                    echo "🐳 [${env.BRANCH_NAME}] Login Docker Hub (${env.DOCKERHUB_USERNAME})..."
+                    sh "docker login -u '${env.DOCKERHUB_USERNAME}' -p '${DOCKERHUB_PASSWORD}'"
+
+                    echo "🔨 [${env.BRANCH_NAME}] Build backend image: ${IMAGE_BACKEND}"
+                    dir('devops-fullstack/backend/backendDevops') {
+                        sh "docker build -t ${IMAGE_BACKEND} ."
+                    }
+                    echo "🚀 [${env.BRANCH_NAME}] Push backend image..."
+                    sh "docker push ${IMAGE_BACKEND}"
+
+                    echo "🔨 [${env.BRANCH_NAME}] Build frontend image: ${IMAGE_FRONTEND}"
+                    dir('devops-fullstack/frontend/frontenddevops') {
+                        sh "docker build -t ${IMAGE_FRONTEND} ."
+                    }
+                    echo "🚀 [${env.BRANCH_NAME}] Push frontend image..."
+                    sh "docker push ${IMAGE_FRONTEND}"
+
+                    echo "🚪 [${env.BRANCH_NAME}] Logout Docker Hub..."
+                    sh 'docker logout'
+                }
+            }
+        }
+
+        stage('5. Deploy to VM via SSH') {
+             // Condition : S'exécute seulement pour la branche 'main'
+             when { branch 'main' }
+             steps {
+                // Vérifie si ssh/scp sont dispos (ils le sont souvent dans l'image jenkins/jenkins)
+                 script {
+                    try {
+                         sh 'echo "Vérification ssh/scp..."'
+                         sh 'which ssh'
+                         sh 'which scp'
+                     } catch (err) {
+                         echo "[WARN] Commande ssh ou scp non trouvée, le déploiement pourrait échouer : ${err}"
+                         // Possibilité d'installer openssh-client ici si nécessaire
+                         // sh 'apt-get update && apt-get install -y openssh-client'
+                     }
+                 }
+                echo "🛰️ [${env.BRANCH_NAME}] Deploying to VM (${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PORT})..."
+                sshagent(credentials: [env.SSH_CREDENTIALS_ID]) { // Utilise l'ID ssh-credentials-mon-serveur
+
+                    echo "📄 Copying ${PROD_COMPOSE_FILE}..."
+                    // Utilise scp avec le port spécifié (-P majuscule) et localhost
+                    sh "scp -o StrictHostKeyChecking=no -P ${REMOTE_PORT} ${PROD_COMPOSE_FILE} ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_PATH}/${REMOTE_COMPOSE_FILENAME}"
+
+                    echo "🚀 Running Docker Compose on VM..."
+                     // Utilise ssh avec le port spécifié (-p minuscule) et localhost
+                    sh "ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} 'cd ${REMOTE_DEPLOY_PATH} && docker compose -f ${REMOTE_COMPOSE_FILENAME} pull && docker compose -f ${REMOTE_COMPOSE_FILENAME} up -d'"
+                }
+            }
+        }
+    } // Fin stages
+
+    // Actions post-build
+    post {
+        always {
+            echo '🧹 Cleaning workspace...'
+            cleanWs() // Nettoie le workspace Jenkins
+        }
+        success {
+            echo "✅ [${env.BRANCH_NAME}] Pipeline SUCCESS!"
+        }
+        failure {
+            echo "❌ [${env.BRANCH_NAME}] Pipeline FAILED!"
+        }
+    } // Fin post
+} // Fin pipeline
