@@ -32,7 +32,8 @@ pipeline {
         // --- Modification du PATH ---
         // Tente d'ajouter les chemins des outils au PATH
         // Note: L'efficacité peut dépendre de l'agent et du moment où c'est évalué
-        PATH = "${tool 'Default'}/bin:${tool 'jdk17'}/bin:${tool 'maven 'apache-maven-3.8.6''}/bin:${tool 'node-20'}/bin:${env.PATH}"
+        // Version corrigée :
+        PATH = "${tool 'Default'}/bin:${tool 'jdk17'}/bin:${tool 'apache-maven-3.8.6'}/bin:${tool 'node-20'}/bin:${env.PATH}"
     }
 
     stages {
