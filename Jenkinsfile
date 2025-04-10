@@ -1,4 +1,4 @@
-// Jenkinsfile FINAL (avec déploiement SSH vers VM via NAT+PortForwarding)
+// Jenkinsfile FINAL v2 (avec outil Git explicite et modif PATH)
 pipeline {
     agent any // Utilise n'importe quel agent Jenkins disponible
 
@@ -7,6 +7,7 @@ pipeline {
         jdk 'jdk17'                // Assure-toi que ce nom correspond à ta config Jenkins
         maven 'apache-maven-3.8.6' // Assure-toi que ce nom correspond
         nodejs 'node-20'           // Assure-toi que ce nom correspond
+        git 'Default'              // *** AJOUTÉ: Nom de l'outil Git configuré dans Jenkins ***
     }
 
     // Variables d'environnement pour le pipeline
@@ -29,15 +30,22 @@ pipeline {
         REMOTE_DEPLOY_PATH       = "/home/${env.REMOTE_USER}/devops-app" // Chemin sur la VM (utilise le REMOTE_USER)
         PROD_COMPOSE_FILE        = "docker-compose.prod.yml"             // Nom du fichier compose pour la prod (à la racine du projet Git)
         REMOTE_COMPOSE_FILENAME  = "docker-compose.yml"                  // Nom du fichier sur le serveur distant après copie
+
+        // --- Modification du PATH ---
+        // Ajoute le répertoire 'bin' de l'outil Git au début du PATH
+        PATH = "${tool 'Default'}/bin:${env.PATH}" // *** AJOUTÉ: Utilise le nom de l'outil Git ***
     }
 
     stages {
         stage('1. Checkout') {
             steps {
                 echo "📥 [${env.BRANCH_NAME}] Récupération du code depuis GitHub..."
+                // Jenkins devrait maintenant utiliser le Git configuré car il est dans le PATH
                 checkout scm
                 echo '>>> Contenu du workspace après checkout:'
                 sh 'ls -la'
+                echo '>>> Vérification de la version de Git utilisée:'
+                sh 'git --version' // *** AJOUTÉ pour DEBUG ***
             }
         }
 
@@ -46,7 +54,16 @@ pipeline {
                 echo "⚙️ [${env.BRANCH_NAME}] Construction et test du backend..."
                 dir('devops-fullstack/backend/backendDevops') {
                     sh 'echo ">>> Dans $(pwd)"'
-                    sh "mvn clean package" // Compile, teste, package
+                     // Utilise withEnv pour s'assurer que Maven utilise le bon JDK
+                     // (Même si on l'a mis dans PATH global, redondance pour assurer)
+                    withEnv(["JAVA_HOME=${tool 'jdk17'}", "PATH+MAVEN=${tool 'apache-maven-3.8.6'}/bin", "PATH+JDK=${tool 'jdk17'}/bin"]) {
+                        sh 'echo ">>> JAVA_HOME utilisé: $JAVA_HOME"'
+                        sh 'echo ">>> java -version"'
+                        sh 'java -version' // Vérifie la version Java
+                        sh 'echo ">>> mvn -version"'
+                        sh 'mvn -version'  // Vérifie la version Maven et son JDK
+                        sh "mvn clean package" // Compile, teste, package
+                    }
                 }
             }
             post {
@@ -61,11 +78,16 @@ pipeline {
                 echo "🌐 [${env.BRANCH_NAME}] Construction et test du frontend..."
                 dir('devops-fullstack/frontend/frontenddevops') {
                     sh 'echo ">>> Dans $(pwd)"'
-                    sh "npm install"
-                    // Exécute les tests SANS le mode watch
-                    sh "npm test -- --watchAll=false"
-                    // Construit les fichiers statiques pour la production
-                    sh "npm run build"
+                    // Utilise withEnv pour s'assurer que npm utilise le bon NodeJS
+                    withEnv(["NODEJS_HOME=${tool 'node-20'}", "PATH+NODE=${tool 'node-20'}/bin"]) {
+                        sh 'echo ">>> node -v"'
+                        sh 'node -v' // Vérifie la version node
+                        sh 'echo ">>> npm -v"'
+                        sh 'npm -v' // Vérifie la version npm
+                        sh "npm install"
+                        sh "npm test -- --watchAll=false"
+                        sh "npm run build"
+                    }
                 }
             }
             post {
@@ -86,7 +108,6 @@ pipeline {
 
                     echo "🔨 [${env.BRANCH_NAME}] Build image backend: ${IMAGE_BACKEND}"
                     dir('devops-fullstack/backend/backendDevops') {
-                        // Construit l'image en utilisant le Dockerfile local
                         sh "docker build -t ${IMAGE_BACKEND} ."
                     }
                     echo "🚀 [${env.BRANCH_NAME}] Push image backend..."
@@ -94,7 +115,6 @@ pipeline {
 
                     echo "🔨 [${env.BRANCH_NAME}] Build image frontend: ${IMAGE_FRONTEND}"
                     dir('devops-fullstack/frontend/frontenddevops') {
-                        // Construit l'image en utilisant le Dockerfile local
                         sh "docker build -t ${IMAGE_FRONTEND} ."
                     }
                     echo "🚀 [${env.BRANCH_NAME}] Push image frontend..."
@@ -106,43 +126,32 @@ pipeline {
             }
         }
 
-        // --- STAGE DE DÉPLOIEMENT MODIFIÉ ---
         stage('5. Deploy to VM via SSH') {
-             // Condition : S'exécute seulement pour la branche 'main'
              when { branch 'main' }
              steps {
                 echo "🛰️ [${env.BRANCH_NAME}] Déploiement sur VM Ubuntu via SSH (${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PORT})..."
-                // Utilise le plugin SSH Agent avec les credentials configurés
-                sshagent(credentials: [env.SSH_CREDENTIALS_ID]) { // ID: ssh-credentials-mon-serveur
+                sshagent(credentials: [env.SSH_CREDENTIALS_ID]) {
 
                     echo "📄 Copie de ${PROD_COMPOSE_FILE} vers ${REMOTE_DEPLOY_PATH}/${REMOTE_COMPOSE_FILENAME} sur la VM..."
-                    // Utilise scp avec le port spécifié (-P majuscule) et la destination localhost
                     sh "scp -o StrictHostKeyChecking=no -P ${REMOTE_PORT} ${PROD_COMPOSE_FILE} ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_PATH}/${REMOTE_COMPOSE_FILENAME}"
 
                     echo "🚀 Exécution de Docker Compose sur la VM..."
-                    // Utilise ssh avec le port spécifié (-p minuscule) et la destination localhost
-                    // Commande: va dans le dossier, pull les dernières images (backend/frontend) depuis Docker Hub,
-                    // puis démarre/met à jour les services en arrière-plan en utilisant le fichier compose copié.
                     sh "ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} 'cd ${REMOTE_DEPLOY_PATH} && docker compose -f ${REMOTE_COMPOSE_FILENAME} pull && docker compose -f ${REMOTE_COMPOSE_FILENAME} up -d'"
                 }
             }
         }
-        // --- FIN STAGE DE DÉPLOIEMENT ---
     } // Fin stages
 
-    // Actions post-build
     post {
         always {
             echo '🧹 Nettoyage du workspace Jenkins...'
-            cleanWs() // Supprime les fichiers du workspace pour le prochain build
+            cleanWs()
         }
         success {
             echo "✅ [${env.BRANCH_NAME}] Pipeline terminé avec SUCCÈS !"
-            // Ajouter des notifications ici (Email, Slack, etc.)
         }
         failure {
             echo "❌ [${env.BRANCH_NAME}] Pipeline en ÉCHEC !"
-             // Ajouter des notifications d'échec ici
         }
     }
 } // Fin pipeline
